@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "FXCompare",
+    "slug": "FXCompare",
+    "version": "1.0.0",
+    "description": "Compare exchange rates across trusted providers and find better transfer value.",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#071521",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aniket01.fxcompare"
+    },
+    "android": {
+      "package": "com.aniket_01.FXCompare",
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#071521",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#071521",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#071521"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2faa1258-d0a5-4006-b6ee-9b3355c5565b"
+      }
+    }
+  }
+}
