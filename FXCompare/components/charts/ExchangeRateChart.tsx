@@ -312,6 +312,122 @@ export default function ExchangeRateChart({
   const lowestRate =
     lowestPoint?.rate ?? 0;
 
+  const insight =
+    useMemo(() => {
+      if (
+        !hasData ||
+        averageRate <= 0
+      ) {
+        return null;
+      }
+
+      let trendLabel =
+        "Neutral";
+      let trendIcon:
+        keyof typeof Ionicons.glyphMap =
+        "remove-outline";
+      let trendColor =
+        "#FFD65A";
+
+      if (change >= 3) {
+        trendLabel =
+          "Strong Bullish";
+        trendIcon =
+          "trending-up";
+        trendColor =
+          "#2FE58C";
+      } else if (change >= 1) {
+        trendLabel =
+          "Bullish";
+        trendIcon =
+          "trending-up";
+        trendColor =
+          "#2FE58C";
+      } else if (change <= -3) {
+        trendLabel =
+          "Strong Bearish";
+        trendIcon =
+          "trending-down";
+        trendColor =
+          "#FF7A7A";
+      } else if (change <= -1) {
+        trendLabel =
+          "Bearish";
+        trendIcon =
+          "trending-down";
+        trendColor =
+          "#FF7A7A";
+      }
+
+      const rateForComparison =
+        displayedRate > 0
+          ? displayedRate
+          : historyLast;
+
+      let averageMessage =
+        "The latest rate is close to the recent average.";
+
+      if (
+        rateForComparison >
+        averageRate * 1.002
+      ) {
+        averageMessage =
+          "The latest rate is above the recent average.";
+      } else if (
+        rateForComparison <
+        averageRate * 0.998
+      ) {
+        averageMessage =
+          "The latest rate is below the recent average.";
+      }
+
+      let recommendation =
+        "Market conditions are relatively stable. Keep monitoring before making a large transfer.";
+
+      if (change >= 1) {
+        recommendation =
+          "Recent momentum is positive for this currency pair. Compare provider payouts before transferring.";
+      } else if (
+        change <= -1
+      ) {
+        recommendation =
+          "Recent momentum is weaker. You may want to monitor the rate before transferring.";
+      }
+
+      const direction =
+        change > 0
+          ? "strengthened"
+          : change < 0
+            ? "weakened"
+            : "was broadly unchanged";
+
+      const summary =
+        `${fromCurrency} ${direction} ${
+          change === 0
+            ? ""
+            : `by ${Math.abs(
+                change
+              ).toFixed(2)}% `
+        }over the selected ${selectedRange} period.`;
+
+      return {
+        trendLabel,
+        trendIcon,
+        trendColor,
+        averageMessage,
+        recommendation,
+        summary,
+      };
+    }, [
+      hasData,
+      averageRate,
+      change,
+      displayedRate,
+      historyLast,
+      fromCurrency,
+      selectedRange,
+    ]);
+
   const handleChartPress = (
     locationX: number,
     measuredWidth: number
@@ -1069,6 +1185,154 @@ export default function ExchangeRateChart({
           </View>
         </View>
       ) : null}
+
+      {insight ? (
+        <View
+          style={
+            styles.insightCard
+          }
+        >
+          <View
+            style={
+              styles.insightHeader
+            }
+          >
+            <View
+              style={
+                styles.insightIcon
+              }
+            >
+              <Ionicons
+                name="bulb-outline"
+                size={18}
+                color="#FFD65A"
+              />
+            </View>
+
+            <View
+              style={
+                styles.insightHeaderText
+              }
+            >
+              <Text
+                style={
+                  styles.insightEyebrow
+                }
+              >
+                SMART ANALYSIS
+              </Text>
+
+              <Text
+                style={
+                  styles.insightTitle
+                }
+              >
+                FXCompare Insight
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.trendBadge,
+                {
+                  borderColor:
+                    insight.trendColor,
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  insight.trendIcon
+                }
+                size={14}
+                color={
+                  insight.trendColor
+                }
+              />
+
+              <Text
+                style={[
+                  styles.trendBadgeText,
+                  {
+                    color:
+                      insight.trendColor,
+                  },
+                ]}
+              >
+                {
+                  insight.trendLabel
+                }
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={
+              styles.insightSummary
+            }
+          >
+            {insight.summary}
+          </Text>
+
+          <View
+            style={
+              styles.insightDivider
+            }
+          />
+
+          <View
+            style={
+              styles.insightRow
+            }
+          >
+            <Ionicons
+              name="analytics-outline"
+              size={16}
+              color="#64AFFF"
+            />
+
+            <Text
+              style={
+                styles.insightBody
+              }
+            >
+              {
+                insight.averageMessage
+              }
+            </Text>
+          </View>
+
+          <View
+            style={
+              styles.insightRow
+            }
+          >
+            <Ionicons
+              name="navigate-outline"
+              size={16}
+              color="#2FE58C"
+            />
+
+            <Text
+              style={
+                styles.insightBody
+              }
+            >
+              {
+                insight.recommendation
+              }
+            </Text>
+          </View>
+
+          <Text
+            style={
+              styles.insightDisclaimer
+            }
+          >
+            Insight is based on recent historical rates and is not financial advice.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1317,6 +1581,113 @@ const styles =
     activeRangeText: {
       color: "#FFFFFF",
     },
+
+    insightCard: {
+      backgroundColor:
+        "rgba(255,214,90,0.06)",
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor:
+        "rgba(255,214,90,0.18)",
+      padding: 14,
+      marginTop: 14,
+    },
+
+    insightHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+    },
+
+    insightIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "rgba(255,214,90,0.11)",
+      marginRight: 10,
+    },
+
+    insightHeaderText: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    insightEyebrow: {
+      color: "#8D8461",
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+    },
+
+    insightTitle: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "900",
+      marginTop: 3,
+    },
+
+    trendBadge: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      marginLeft: 8,
+    },
+
+    trendBadgeText: {
+      fontSize: 8,
+      fontWeight: "900",
+      marginLeft: 4,
+    },
+
+    insightSummary: {
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontWeight: "800",
+      lineHeight: 19,
+      marginTop: 14,
+    },
+
+    insightDivider: {
+      height: 1,
+      backgroundColor:
+        "rgba(255,255,255,0.07)",
+      marginVertical: 12,
+    },
+
+    insightRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "flex-start",
+      marginTop: 9,
+    },
+
+    insightBody: {
+      flex: 1,
+      color: "#A9BECC",
+      fontSize: 11,
+      lineHeight: 17,
+      marginLeft: 8,
+    },
+
+    insightDisclaimer: {
+      color: "#657F91",
+      fontSize: 8,
+      lineHeight: 12,
+      marginTop: 13,
+    },
+
 
     statisticsCard: {
       backgroundColor:
