@@ -18,10 +18,12 @@ import { Ionicons } from "@expo/vector-icons";
 
 import ScreenHeader from "../components/ScreenHeader";
 import HistoricalChart from "../components/historical/HistoricalChart";
+import FavoriteButton from "../components/market/FavoriteButton";
 
 import { MarketPair } from "../services/marketsApi";
 import useMarkets from "../hooks/useMarkets";
 import useHistoricalRates from "../hooks/useHistoricalRates";
+import useFavorites from "../hooks/useFavorites";
 
 type MarketFilter =
   | "all"
@@ -111,6 +113,12 @@ export default function MarketsScreen() {
     topLoser,
     fetchMarkets,
   } = useMarkets();
+
+  const {
+    favoriteCodes,
+    isFavorite,
+    toggleFavorite,
+  } = useFavorites();
 
   const [
     searchText,
@@ -227,6 +235,19 @@ export default function MarketsScreen() {
       marketPairs,
       searchText,
       selectedFilter,
+    ]);
+
+  const favoritePairs =
+    useMemo(() => {
+      return marketPairs.filter(
+        (item) =>
+          favoriteCodes.includes(
+            item.code
+          )
+      );
+    }, [
+      marketPairs,
+      favoriteCodes,
     ]);
 
   const clearSearch = () => {
@@ -759,6 +780,95 @@ export default function MarketsScreen() {
           </>
         ) : null}
 
+        {favoritePairs.length > 0 ? (
+          <>
+            <View
+              style={
+                styles.sectionHeader
+              }
+            >
+              <View>
+                <Text
+                  style={
+                    styles.sectionTitle
+                  }
+                >
+                  Favorites
+                </Text>
+
+                <Text
+                  style={
+                    styles.sectionSubtitle
+                  }
+                >
+                  Your saved currency pairs
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.favoriteCountBadge
+                }
+              >
+                <Ionicons
+                  name="heart"
+                  size={14}
+                  color="#FF7A9A"
+                />
+
+                <Text
+                  style={
+                    styles.favoriteCountText
+                  }
+                >
+                  {
+                    favoritePairs.length
+                  }
+                </Text>
+              </View>
+            </View>
+
+            {favoritePairs.map(
+              (item) => (
+                <MarketCard
+                  key={`favorite-${item.code}`}
+                  item={item}
+                  favorite
+                  onToggleFavorite={() => {
+                    void toggleFavorite(
+                      item.code
+                    );
+                  }}
+                  onPress={() => {
+                    const parts =
+                      item.pair.split(
+                        "/"
+                      );
+
+                    if (
+                      parts.length === 2
+                    ) {
+                      setChartFromCurrency(
+                        parts[0].trim()
+                      );
+
+                      setChartToCurrency(
+                        parts[1].trim()
+                      );
+                    }
+                  }}
+                />
+              )
+            )}
+
+            <View
+              style={
+                styles.favoriteDivider
+              }
+            />
+          </>
+        ) : null}
+
         <View
           style={
             styles.sectionHeader
@@ -995,11 +1105,32 @@ export default function MarketsScreen() {
                   item.code
                 }
                 item={item}
+                favorite={
+                  isFavorite(
+                    item.code
+                  )
+                }
+                onToggleFavorite={() => {
+                  void toggleFavorite(
+                    item.code
+                  );
+                }}
                 onPress={() => {
-                  const parts = item.pair.split("/");
-                  if (parts.length === 2) {
-                    setChartFromCurrency(parts[0]);
-                    setChartToCurrency(parts[1]);
+                  const parts =
+                    item.pair.split(
+                      "/"
+                    );
+
+                  if (
+                    parts.length === 2
+                  ) {
+                    setChartFromCurrency(
+                      parts[0].trim()
+                    );
+
+                    setChartToCurrency(
+                      parts[1].trim()
+                    );
                   }
                 }}
               />
@@ -1132,9 +1263,13 @@ function FilterButton({
 
 function MarketCard({
   item,
+  favorite,
+  onToggleFavorite,
   onPress,
 }: {
   item: MarketPair;
+  favorite: boolean;
+  onToggleFavorite: () => void;
   onPress: () => void;
 }) {
   const positive =
@@ -1214,6 +1349,13 @@ function MarketCard({
           styles.rightSection
         }
       >
+        <FavoriteButton
+          active={favorite}
+          onPress={
+            onToggleFavorite
+          }
+        />
+
         <Text
           style={
             styles.rate
@@ -1599,6 +1741,36 @@ const styles =
       fontWeight: "900",
     },
 
+    favoriteCountBadge: {
+      minWidth: 48,
+      height: 34,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 17,
+      backgroundColor:
+        "rgba(255,122,154,0.10)",
+      borderWidth: 1,
+      borderColor:
+        "rgba(255,122,154,0.25)",
+      paddingHorizontal: 9,
+    },
+
+    favoriteCountText: {
+      color: "#FF9DB5",
+      fontSize: 11,
+      fontWeight: "900",
+      marginLeft: 5,
+    },
+
+    favoriteDivider: {
+      height: 1,
+      backgroundColor:
+        "#16344C",
+      marginTop: 4,
+      marginBottom: 24,
+    },
+
     searchBox: {
       height: 58,
       flexDirection: "row",
@@ -1858,6 +2030,7 @@ const styles =
 
     rate: {
       color: "#FFFFFF",
+      marginTop: 7,
       fontSize: 17,
       fontWeight: "900",
     },
@@ -1932,4 +2105,4 @@ const styles =
       lineHeight: 18,
       marginLeft: 10,
     },
-  });
+  }); 

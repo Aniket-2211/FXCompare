@@ -1,5 +1,3 @@
-// App.tsx
-
 import React from "react";
 import {
   StatusBar,
@@ -22,6 +20,12 @@ import {
   CurrencyProvider,
 } from "./context/CurrencyContext";
 
+import {
+  AuthProvider,
+} from "./context/AuthContext";
+
+import CloudSyncProvider from "./context/CloudSyncProvider";
+
 const navigationTheme = {
   ...DarkTheme,
 
@@ -40,20 +44,24 @@ const navigationTheme = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppSettingsProvider>
-        <CurrencyProvider>
-          <NavigationContainer
-            theme={navigationTheme}
-          >
-            <StatusBar
-              backgroundColor="#071521"
-              barStyle="light-content"
-            />
+      <AuthProvider>
+        <AppSettingsProvider>
+          <CloudSyncProvider>
+            <CurrencyProvider>
+              <NavigationContainer
+                theme={navigationTheme}
+              >
+                <StatusBar
+                  backgroundColor="#071521"
+                  barStyle="light-content"
+                />
 
-            <RootNavigator />
-          </NavigationContainer>
-        </CurrencyProvider>
-      </AppSettingsProvider>
+                <RootNavigator />
+              </NavigationContainer>
+            </CurrencyProvider>
+          </CloudSyncProvider>
+        </AppSettingsProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

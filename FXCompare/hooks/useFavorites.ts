@@ -1,138 +1,104 @@
-// hooks/useFavorites.ts
-
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
-  FavouritePair,
-  FavouriteProvider,
-  getFavouritePairs,
-  getFavouriteProviders,
-  saveFavouritePair,
-  saveFavouriteProvider,
-  removeFavouritePair,
-  removeFavouriteProvider,
-  clearFavouritePairs,
-  clearFavouriteProviders,
-} from "../services/favoriteService";
+  loadFavoriteMarketPairs,
+  saveFavoriteMarketPairs,
+} from "../services/favoritesStorage";
 
 export default function useFavorites() {
-  const [pairs, setPairs] =
-    useState<FavouritePair[]>([]);
+  const [
+    favoriteCodes,
+    setFavoriteCodes,
+  ] = useState<string[]>([]);
 
-  const [providers, setProviders] =
-    useState<FavouriteProvider[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const loadFavorites =
-    useCallback(async () => {
-      setLoading(true);
-
-      try {
-        const [
-          savedPairs,
-          savedProviders,
-        ] = await Promise.all([
-          getFavouritePairs(),
-          getFavouriteProviders(),
-        ]);
-
-        setPairs(savedPairs);
-        setProviders(savedProviders);
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+  const [
+    loadingFavorites,
+    setLoadingFavorites,
+  ] = useState(true);
 
   useEffect(() => {
-    void loadFavorites();
-  }, [loadFavorites]);
+    let mounted = true;
 
-  const addPair =
-    useCallback(
-      async (
-        fromCurrency: string,
-        toCurrency: string
-      ) => {
-        const updated =
-          await saveFavouritePair(
-            fromCurrency,
-            toCurrency
-          );
+    const load = async () => {
+      try {
+        const saved =
+          await loadFavoriteMarketPairs();
 
-        setPairs(updated);
-      },
-      []
+        if (mounted) {
+          setFavoriteCodes(saved);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingFavorites(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const favoriteSet =
+    useMemo(
+      () =>
+        new Set(
+          favoriteCodes
+        ),
+      [favoriteCodes]
     );
 
-  const removePair =
+  const isFavorite =
     useCallback(
-      async (id: string) => {
-        const updated =
-          await removeFavouritePair(
-            id
-          );
-
-        setPairs(updated);
-      },
-      []
+      (code: string) =>
+        favoriteSet.has(code),
+      [favoriteSet]
     );
 
-  const addProvider =
+  const toggleFavorite =
     useCallback(
-      async (
-        providerName: string
-      ) => {
-        const updated =
-          await saveFavouriteProvider(
-            providerName
+      async (code: string) => {
+        let nextCodes:
+          | string[]
+          | null = null;
+
+        setFavoriteCodes(
+          (current) => {
+            nextCodes =
+              current.includes(code)
+                ? current.filter(
+                    (item) =>
+                      item !== code
+                  )
+                : [
+                    ...current,
+                    code,
+                  ];
+
+            return nextCodes;
+          }
+        );
+
+        if (nextCodes) {
+          await saveFavoriteMarketPairs(
+            nextCodes
           );
-
-        setProviders(updated);
-      },
-      []
-    );
-
-  const removeProvider =
-    useCallback(
-      async (id: string) => {
-        const updated =
-          await removeFavouriteProvider(
-            id
-          );
-
-        setProviders(updated);
+        }
       },
       []
     );
 
   return {
-    loading,
-
-    favouritePairs: pairs,
-
-    favouriteProviders:
-      providers,
-
-    loadFavorites,
-
-    addPair,
-
-    removePair,
-
-    addProvider,
-
-    removeProvider,
-
-    clearPairs:
-      clearFavouritePairs,
-
-    clearProviders:
-      clearFavouriteProviders,
+    favoriteCodes,
+    loadingFavorites,
+    isFavorite,
+    toggleFavorite,
   };
 }

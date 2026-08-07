@@ -1,8 +1,7 @@
-// screens/ProfileScreen.tsx
-
 import React from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import ScreenHeader from "../components/ScreenHeader";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { useAuth } from "../context/AuthContext";
 
 type SettingItem = {
   id:
@@ -73,6 +73,11 @@ const providerMeta: Record<
 
 export default function ProfileScreen() {
   const {
+    user,
+    logout,
+  } = useAuth();
+
+  const {
     loadingSettings,
 
     darkMode,
@@ -90,6 +95,57 @@ export default function ProfileScreen() {
     removeFavouriteProvider,
     clearAllSettings,
   } = useAppSettings();
+
+  const displayName =
+    user?.displayName?.trim() ||
+    user?.email?.split("@")[0] ||
+    "FXCompare User";
+
+  const email =
+    user?.email ??
+    "No email available";
+
+  const initials =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) =>
+        part.charAt(0).toUpperCase()
+      )
+      .join("") || "FX";
+
+  const confirmLogout = () => {
+    Alert.alert(
+      "Sign out?",
+      "You will return to the FXCompare login screen.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              console.log(
+                "Logout error:",
+                error
+              );
+
+              Alert.alert(
+                "Unable to sign out",
+                "Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const settings: SettingItem[] = [
     {
@@ -255,30 +311,45 @@ export default function ProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons
-              name="person"
-              size={40}
-              color="#FFFFFF"
-            />
+            {user?.photoURL ? (
+              <Image
+                source={{
+                  uri: user.photoURL,
+                }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {initials}
+              </Text>
+            )}
           </View>
 
           <Text style={styles.name}>
-            FXCompare User
+            {displayName}
           </Text>
 
           <Text style={styles.email}>
-            Guest Account
+            {email}
           </Text>
+
+          <View style={styles.accountStatusRow}>
+            <View style={styles.accountStatusDot} />
+
+            <Text style={styles.accountStatusText}>
+              Firebase account
+            </Text>
+          </View>
 
           <View style={styles.badge}>
             <Ionicons
-              name="flash"
+              name="shield-checkmark"
               size={14}
               color="#2FE58C"
             />
 
             <Text style={styles.badgeText}>
-              PRO EXPERIENCE
+              SIGNED IN
             </Text>
           </View>
         </View>
@@ -589,6 +660,22 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           activeOpacity={0.85}
+          style={styles.logoutButton}
+          onPress={confirmLogout}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color="#FFFFFF"
+          />
+
+          <Text style={styles.logoutText}>
+            Sign Out
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
           style={styles.resetButton}
           onPress={handleReset}
         >
@@ -642,6 +729,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 40,
+  },
+
+  avatarInitials: {
+    color: "#FFFFFF",
+    fontSize: 27,
+    fontWeight: "900",
+  },
+
   name: {
     color: "#FFFFFF",
     fontSize: 22,
@@ -653,6 +752,26 @@ const styles = StyleSheet.create({
     color: "#8EA7BA",
     marginTop: 6,
     fontSize: 14,
+  },
+
+  accountStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  accountStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#2FE58C",
+    marginRight: 6,
+  },
+
+  accountStatusText: {
+    color: "#8EA7BA",
+    fontSize: 11,
+    fontWeight: "700",
   },
 
   badge: {
@@ -909,6 +1028,23 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
     marginLeft: 10,
+  },
+
+  logoutButton: {
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#1687E8",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  logoutText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+    marginLeft: 8,
   },
 
   resetButton: {
