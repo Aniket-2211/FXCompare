@@ -291,6 +291,27 @@ export default function ExchangeRateChart({
       );
     }, [chartPoints]);
 
+  const averageRate =
+    useMemo(() => {
+      if (values.length === 0) {
+        return 0;
+      }
+
+      return (
+        values.reduce(
+          (sum, value) =>
+            sum + value,
+          0
+        ) / values.length
+      );
+    }, [values]);
+
+  const highestRate =
+    highestPoint?.rate ?? 0;
+
+  const lowestRate =
+    lowestPoint?.rate ?? 0;
+
   const handleChartPress = (
     locationX: number,
     measuredWidth: number
@@ -842,6 +863,212 @@ export default function ExchangeRateChart({
           }
         )}
       </View>
+
+      {hasData ? (
+        <View
+          style={
+            styles.statisticsCard
+          }
+        >
+          <View
+            style={
+              styles.statisticsHeader
+            }
+          >
+            <View
+              style={
+                styles.statisticsIcon
+              }
+            >
+              <Ionicons
+                name="analytics-outline"
+                size={17}
+                color="#64AFFF"
+              />
+            </View>
+
+            <View>
+              <Text
+                style={
+                  styles.statisticsEyebrow
+                }
+              >
+                SELECTED PERIOD
+              </Text>
+
+              <Text
+                style={
+                  styles.statisticsTitle
+                }
+              >
+                Exchange Statistics
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={
+              styles.statisticsGrid
+            }
+          >
+            <View
+              style={
+                styles.statItem
+              }
+            >
+              <Text
+                style={
+                  styles.statLabel
+                }
+              >
+                Highest
+              </Text>
+
+              <Text
+                style={
+                  styles.statValue
+                }
+              >
+                {formatRate(
+                  highestRate
+                )}
+              </Text>
+
+              <Text
+                style={
+                  styles.statCurrency
+                }
+              >
+                {toCurrency}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.statDivider
+              }
+            />
+
+            <View
+              style={
+                styles.statItem
+              }
+            >
+              <Text
+                style={
+                  styles.statLabel
+                }
+              >
+                Lowest
+              </Text>
+
+              <Text
+                style={
+                  styles.statValue
+                }
+              >
+                {formatRate(
+                  lowestRate
+                )}
+              </Text>
+
+              <Text
+                style={
+                  styles.statCurrency
+                }
+              >
+                {toCurrency}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={
+              styles.statisticsGrid
+            }
+          >
+            <View
+              style={
+                styles.statItem
+              }
+            >
+              <Text
+                style={
+                  styles.statLabel
+                }
+              >
+                Average
+              </Text>
+
+              <Text
+                style={
+                  styles.statValue
+                }
+              >
+                {formatRate(
+                  averageRate
+                )}
+              </Text>
+
+              <Text
+                style={
+                  styles.statCurrency
+                }
+              >
+                {toCurrency}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.statDivider
+              }
+            />
+
+            <View
+              style={
+                styles.statItem
+              }
+            >
+              <Text
+                style={
+                  styles.statLabel
+                }
+              >
+                Change
+              </Text>
+
+              <Text
+                style={[
+                  styles.statValue,
+                  {
+                    color:
+                      isPositive
+                        ? "#2FE58C"
+                        : "#FF7A7A",
+                  },
+                ]}
+              >
+                {isPositive
+                  ? "+"
+                  : ""}
+                {change.toFixed(
+                  2
+                )}
+                %
+              </Text>
+
+              <Text
+                style={
+                  styles.statCurrency
+                }
+              >
+                {selectedRange}
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1090,4 +1317,96 @@ const styles =
     activeRangeText: {
       color: "#FFFFFF",
     },
+
+    statisticsCard: {
+      backgroundColor:
+        "#102A3D",
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor:
+        "#194661",
+      padding: 14,
+      marginTop: 14,
+    },
+
+    statisticsHeader: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      marginBottom: 14,
+    },
+
+    statisticsIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "rgba(100,175,255,0.12)",
+      marginRight: 10,
+    },
+
+    statisticsEyebrow: {
+      color: "#6F8DA2",
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+    },
+
+    statisticsTitle: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "900",
+      marginTop: 3,
+    },
+
+    statisticsGrid: {
+      flexDirection:
+        "row",
+      alignItems:
+        "stretch",
+      backgroundColor:
+        "#16344C",
+      borderRadius: 15,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      marginTop: 8,
+    },
+
+    statItem: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    statDivider: {
+      width: 1,
+      backgroundColor:
+        "#295069",
+      marginHorizontal: 10,
+    },
+
+    statLabel: {
+      color: "#829CAF",
+      fontSize: 9,
+      fontWeight: "700",
+    },
+
+    statValue: {
+      color: "#FFFFFF",
+      fontSize: 17,
+      fontWeight: "900",
+      marginTop: 5,
+    },
+
+    statCurrency: {
+      color: "#6F8DA2",
+      fontSize: 8,
+      fontWeight: "700",
+      marginTop: 3,
+    },
+
   });
