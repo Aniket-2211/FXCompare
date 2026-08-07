@@ -23,6 +23,8 @@ import ScreenHeader from "../components/ScreenHeader";
 import AlertSummaryCard from "../components/alerts/AlertSummaryCard";
 import CreateAlertCard from "../components/alerts/CreateAlertCard";
 import AlertCard from "../components/alerts/AlertCard";
+import AlertList from "../components/alerts/AlertList";
+import EmptyState from "../components/alerts/EmptyState";
 import CurrencyPickerModal, {
   CurrencyOption,
   currencyOptions,
@@ -922,8 +924,9 @@ export default function AlertsScreen() {
               title="No alerts created"
               message="Create your first target-rate alert using the form above."
             />
-          ) : (
-            savedAlerts.map(
+           ) : (
+            <AlertList>
+            {savedAlerts.map(
               (item) => {
                 const pairKey =
                   getPairKey(
@@ -1035,7 +1038,8 @@ export default function AlertsScreen() {
                   />
                 );
               }
-            )
+             )}
+            </AlertList>
           )}
 
           <View
@@ -1085,45 +1089,6 @@ export default function AlertsScreen() {
         }
       />
     </SafeAreaView>
-  );
-}
-
-type EmptyStateProps = {
-  icon:
-    keyof typeof Ionicons.glyphMap;
-  title: string;
-  message: string;
-};
-
-function EmptyState({
-  icon,
-  title,
-  message,
-}: EmptyStateProps) {
-  return (
-    <View style={styles.emptyCard}>
-      <Ionicons
-        name={icon}
-        size={39}
-        color="#67869C"
-      />
-
-      <Text
-        style={
-          styles.emptyTitle
-        }
-      >
-        {title}
-      </Text>
-
-      <Text
-        style={
-          styles.emptyText
-        }
-      >
-        {message}
-      </Text>
-    </View>
   );
 }
 
