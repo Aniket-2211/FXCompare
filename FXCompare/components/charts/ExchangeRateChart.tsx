@@ -10,7 +10,9 @@ import {
   View,
 } from "react-native";
 import Svg, {
+  Circle,
   Defs,
+  Line,
   LinearGradient,
   Path,
   Stop,
@@ -43,30 +45,51 @@ const CHART_HEIGHT = 150;
 const TOP_PADDING = 12;
 const BOTTOM_PADDING = 16;
 
-const formatRate = (
-  value: number
-) =>
-  new Intl.NumberFormat(
+type ChartPoint = {
+  x: number;
+  y: number;
+  rate: number;
+  date: string;
+};
+
+const formatTooltipDate = (
+  date: string
+) => {
+  const parsed = new Date(
+    `${date}T00:00:00`
+  );
+
+  if (
+    Number.isNaN(
+      parsed.getTime()
+    )
+  ) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString(
     "en-IN",
     {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }
-  ).format(value);
+  );
+};
 
-const buildPath = (
-  values: number[]
-) => {
-  if (values.length === 0) {
-    return "";
+const buildChartPoints = (
+  data: {
+    date: string;
+    rate: number;
+  }[]
+): ChartPoint[] => {
+  if (data.length === 0) {
+    return [];
   }
 
-  if (values.length === 1) {
-    const y =
-      CHART_HEIGHT / 2;
-
-    return `M 0 ${y} L ${CHART_WIDTH} ${y}`;
-  }
+  const values = data.map(
+    (point) => point.rate
+  );
 
   const min =
     Math.min(...values);
@@ -85,42 +108,79 @@ const buildPath = (
     TOP_PADDING -
     BOTTOM_PADDING;
 
+  if (data.length === 1) {
+    return [
+      {
+        x: CHART_WIDTH / 2,
+        y: CHART_HEIGHT / 2,
+        rate: data[0].rate,
+        date: data[0].date,
+      },
+    ];
+  }
+
   const stepX =
     CHART_WIDTH /
-    (values.length - 1);
+    (data.length - 1);
 
-  return values
+  return data.map(
+    (point, index) => {
+      const normalized =
+        (point.rate - min) /
+        range;
+
+      const y =
+        TOP_PADDING +
+        usableHeight *
+          (1 - normalized);
+
+      return {
+        x: index * stepX,
+        y,
+        rate: point.rate,
+        date: point.date,
+      };
+    }
+  );
+};
+
+const buildPathFromPoints = (
+  points: ChartPoint[]
+) => {
+  if (points.length === 0) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M 0 ${points[0].y} L ${CHART_WIDTH} ${points[0].y}`;
+  }
+
+  return points
     .map(
-      (
-        value,
-        index
-      ) => {
-        const x =
-          index * stepX;
-
-        const normalized =
-          (value - min) /
-          range;
-
-        const y =
-          TOP_PADDING +
-          usableHeight *
-            (1 -
-              normalized);
-
-        return `${
+      (point, index) =>
+        `${
           index === 0
             ? "M"
             : "L"
-        } ${x.toFixed(
+        } ${point.x.toFixed(
           2
-        )} ${y.toFixed(
+        )} ${point.y.toFixed(
           2
-        )}`;
-      }
+        )}`
     )
     .join(" ");
 };
+
+const formatRate = (
+  value: number
+) =>
+  new Intl.NumberFormat(
+    "en-IN",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }
+  ).format(value);
 
 export default function ExchangeRateChart({
   fromCurrency,
@@ -134,6 +194,20 @@ export default function ExchangeRateChart({
     useState<HistoricalRange>(
       "30D"
     );
+
+  const [
+    selectedIndex,
+    setSelectedIndex,
+  ] = useState<number | null>(
+    null
+  );
+
+  const [
+    chartWidth,
+    setChartWidth,
+  ] = useState(
+    CHART_WIDTH
+  );
 
   const {
     data,
@@ -158,12 +232,80 @@ export default function ExchangeRateChart({
       [data]
     );
 
+  const chartPoints =
+    useMemo(
+      () =>
+        buildChartPoints(
+          data
+        ),
+      [data]
+    );
+
   const path =
     useMemo(
       () =>
-        buildPath(values),
-      [values]
+        buildPathFromPoints(
+          chartPoints
+        ),
+      [chartPoints]
     );
+
+  const selectedPoint =
+    selectedIndex !== null
+      ? chartPoints[
+          selectedIndex
+        ] ?? null
+      : null;
+
+  const handleChartPress = (
+    locationX: number,
+    measuredWidth: number
+  ) => {
+    if (
+      chartPoints.length === 0 ||
+      measuredWidth <= 0
+    ) {
+      return;
+    }
+
+    const chartX =
+      Math.max(
+        0,
+        Math.min(
+          CHART_WIDTH,
+          (locationX /
+            measuredWidth) *
+            CHART_WIDTH
+        )
+      );
+
+    let nearestIndex = 0;
+    let nearestDistance =
+      Number.POSITIVE_INFINITY;
+
+    chartPoints.forEach(
+      (point, index) => {
+        const distance =
+          Math.abs(
+            point.x - chartX
+          );
+
+        if (
+          distance <
+          nearestDistance
+        ) {
+          nearestDistance =
+            distance;
+          nearestIndex =
+            index;
+        }
+      }
+    );
+
+    setSelectedIndex(
+      nearestIndex
+    );
+  };
 
   const firstValue =
     values[0] ?? 0;
@@ -351,43 +493,150 @@ export default function ExchangeRateChart({
             </Text>
           </Pressable>
         ) : hasData ? (
-          <Svg
-            width="100%"
-            height={
-              CHART_HEIGHT
+          <View
+            style={
+              styles.interactiveChart
             }
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+            onLayout={(event) => {
+              setChartWidth(
+                event.nativeEvent
+                  .layout.width
+              );
+            }}
           >
-            <Defs>
-              <LinearGradient
-                id="chartLine"
-                x1="0"
-                y1="0"
-                x2="1"
-                y2="0"
-              >
-                <Stop
-                  offset="0"
-                  stopColor="#64AFFF"
-                  stopOpacity="0.9"
-                />
-                <Stop
-                  offset="1"
-                  stopColor="#2FE58C"
-                  stopOpacity="1"
-                />
-              </LinearGradient>
-            </Defs>
+            <Pressable
+              style={styles.chartPressable}
+              onPress={(event) => {
+                const locationX =
+                  event.nativeEvent
+                    .locationX;
 
-            <Path
-              d={path}
-              fill="none"
-              stroke="url(#chartLine)"
-              strokeWidth={4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
+                handleChartPress(
+                  locationX,
+                  chartWidth
+                );
+              }}
+            >
+              <Svg
+                width="100%"
+                height={
+                  CHART_HEIGHT
+                }
+                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              >
+                <Defs>
+                  <LinearGradient
+                    id="chartLine"
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="0"
+                  >
+                    <Stop
+                      offset="0"
+                      stopColor="#64AFFF"
+                      stopOpacity="0.9"
+                    />
+                    <Stop
+                      offset="1"
+                      stopColor="#2FE58C"
+                      stopOpacity="1"
+                    />
+                  </LinearGradient>
+                </Defs>
+
+                <Path
+                  d={path}
+                  fill="none"
+                  stroke="url(#chartLine)"
+                  strokeWidth={4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {selectedPoint ? (
+                  <>
+                    <Line
+                      x1={
+                        selectedPoint.x
+                      }
+                      y1={0}
+                      x2={
+                        selectedPoint.x
+                      }
+                      y2={
+                        CHART_HEIGHT
+                      }
+                      stroke="#6F8DA2"
+                      strokeWidth={1}
+                      strokeDasharray="4 5"
+                    />
+
+                    <Circle
+                      cx={
+                        selectedPoint.x
+                      }
+                      cy={
+                        selectedPoint.y
+                      }
+                      r={7}
+                      fill="#071521"
+                      stroke="#2FE58C"
+                      strokeWidth={4}
+                    />
+                  </>
+                ) : null}
+              </Svg>
+            </Pressable>
+
+            {selectedPoint ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.tooltip,
+                  {
+                    left: Math.max(
+                      8,
+                      Math.min(
+                        CHART_WIDTH -
+                          126,
+                        (selectedPoint.x /
+                          CHART_WIDTH) *
+                          chartWidth -
+                          55
+                      )
+                    ),
+                    top: Math.max(
+                      4,
+                      selectedPoint.y -
+                        64
+                    ),
+                  },
+                ]}
+              >
+                <Text
+                  style={
+                    styles.tooltipDate
+                  }
+                >
+                  {formatTooltipDate(
+                    selectedPoint.date
+                  )}
+                </Text>
+
+                <Text
+                  style={
+                    styles.tooltipRate
+                  }
+                >
+                  {formatRate(
+                    selectedPoint.rate
+                  )}{" "}
+                  {toCurrency}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : (
           <View
             style={
@@ -426,11 +675,14 @@ export default function ExchangeRateChart({
                 key={
                   rangeOption
                 }
-                onPress={() =>
+                onPress={() => {
+                  setSelectedIndex(
+                    null
+                  );
                   setSelectedRange(
                     rangeOption
-                  )
-                }
+                  );
+                }}
                 style={[
                   styles.rangeButton,
                   active &&
@@ -591,6 +843,44 @@ const styles =
       fontSize: 10,
       fontWeight: "800",
       marginTop: 7,
+    },
+
+    interactiveChart: {
+      position: "relative",
+      width: "100%",
+      minHeight: CHART_HEIGHT,
+    },
+
+    chartPressable: {
+      width: "100%",
+      minHeight: CHART_HEIGHT,
+    },
+
+    tooltip: {
+      position: "absolute",
+      minWidth: 118,
+      backgroundColor:
+        "#071521",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor:
+        "#21516E",
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      zIndex: 5,
+    },
+
+    tooltipDate: {
+      color: "#829CAF",
+      fontSize: 9,
+      fontWeight: "700",
+    },
+
+    tooltipRate: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "900",
+      marginTop: 3,
     },
 
     rangeRow: {
