@@ -257,6 +257,40 @@ export default function ExchangeRateChart({
         ] ?? null
       : null;
 
+  const highestPoint =
+    useMemo(() => {
+      if (
+        chartPoints.length === 0
+      ) {
+        return null;
+      }
+
+      return chartPoints.reduce(
+        (highest, point) =>
+          point.rate >
+          highest.rate
+            ? point
+            : highest
+      );
+    }, [chartPoints]);
+
+  const lowestPoint =
+    useMemo(() => {
+      if (
+        chartPoints.length === 0
+      ) {
+        return null;
+      }
+
+      return chartPoints.reduce(
+        (lowest, point) =>
+          point.rate <
+          lowest.rate
+            ? point
+            : lowest
+      );
+    }, [chartPoints]);
+
   const handleChartPress = (
     locationX: number,
     measuredWidth: number
@@ -554,6 +588,40 @@ export default function ExchangeRateChart({
                   strokeLinejoin="round"
                 />
 
+                {highestPoint ? (
+                  <>
+                    <Circle
+                      cx={
+                        highestPoint.x
+                      }
+                      cy={
+                        highestPoint.y
+                      }
+                      r={6}
+                      fill="#071521"
+                      stroke="#2FE58C"
+                      strokeWidth={3}
+                    />
+                  </>
+                ) : null}
+
+                {lowestPoint ? (
+                  <>
+                    <Circle
+                      cx={
+                        lowestPoint.x
+                      }
+                      cy={
+                        lowestPoint.y
+                      }
+                      r={6}
+                      fill="#071521"
+                      stroke="#FF9C70"
+                      strokeWidth={3}
+                    />
+                  </>
+                ) : null}
+
                 {selectedPoint ? (
                   <>
                     <Line
@@ -588,6 +656,77 @@ export default function ExchangeRateChart({
                 ) : null}
               </Svg>
             </Pressable>
+
+            {highestPoint ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.extremeLabel,
+                  styles.highLabel,
+                  {
+                    left: Math.max(
+                      6,
+                      Math.min(
+                        chartWidth - 76,
+                        (highestPoint.x /
+                          CHART_WIDTH) *
+                          chartWidth -
+                          34
+                      )
+                    ),
+                    top: Math.max(
+                      2,
+                      highestPoint.y -
+                        30
+                    ),
+                  },
+                ]}
+              >
+                <Text
+                  style={
+                    styles.extremeLabelText
+                  }
+                >
+                  HIGH
+                </Text>
+              </View>
+            ) : null}
+
+            {lowestPoint ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.extremeLabel,
+                  styles.lowLabel,
+                  {
+                    left: Math.max(
+                      6,
+                      Math.min(
+                        chartWidth - 76,
+                        (lowestPoint.x /
+                          CHART_WIDTH) *
+                          chartWidth -
+                          34
+                      )
+                    ),
+                    top: Math.min(
+                      CHART_HEIGHT -
+                        24,
+                      lowestPoint.y +
+                        10
+                    ),
+                  },
+                ]}
+              >
+                <Text
+                  style={
+                    styles.extremeLabelText
+                  }
+                >
+                  LOW
+                </Text>
+              </View>
+            ) : null}
 
             {selectedPoint ? (
               <View
@@ -854,6 +993,39 @@ const styles =
     chartPressable: {
       width: "100%",
       minHeight: CHART_HEIGHT,
+    },
+
+    extremeLabel: {
+      position: "absolute",
+      minWidth: 54,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      alignItems: "center",
+      zIndex: 4,
+    },
+
+    highLabel: {
+      backgroundColor:
+        "rgba(47,229,140,0.14)",
+      borderWidth: 1,
+      borderColor:
+        "rgba(47,229,140,0.32)",
+    },
+
+    lowLabel: {
+      backgroundColor:
+        "rgba(255,156,112,0.14)",
+      borderWidth: 1,
+      borderColor:
+        "rgba(255,156,112,0.32)",
+    },
+
+    extremeLabelText: {
+      color: "#FFFFFF",
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.7,
     },
 
     tooltip: {
