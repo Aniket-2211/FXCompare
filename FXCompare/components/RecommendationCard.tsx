@@ -18,6 +18,14 @@ export type RecommendationReason = {
   icon?: keyof typeof Ionicons.glyphMap;
 };
 
+type RecommendationBreakdown = {
+  payout: number;
+  fee: number;
+  speed: number;
+  rating: number;
+  reliability: number;
+};
+
 type Props = {
   providerName?: string;
   score?: number;
@@ -28,6 +36,8 @@ type Props = {
   savings?: number;
   currency?: string;
   reasons?: RecommendationReason[];
+  confidence?: number;
+  breakdown?: RecommendationBreakdown;
   loading?: boolean;
   onPress?: () => void;
 };
@@ -69,6 +79,8 @@ export default function RecommendationCard({
   savings = 0,
   currency = "",
   reasons = [],
+  confidence = 0,
+  breakdown,
   loading = false,
   onPress,
 }: Props) {
@@ -86,6 +98,28 @@ export default function RecommendationCard({
   const safeReasons = Array.isArray(reasons)
     ? reasons
     : [];
+
+  const safeConfidence = clampScore(
+    safeNumber(confidence)
+  );
+
+  const safeBreakdown: RecommendationBreakdown = {
+    payout: clampScore(
+      safeNumber(breakdown?.payout)
+    ),
+    fee: clampScore(
+      safeNumber(breakdown?.fee)
+    ),
+    speed: clampScore(
+      safeNumber(breakdown?.speed)
+    ),
+    rating: clampScore(
+      safeNumber(breakdown?.rating)
+    ),
+    reliability: clampScore(
+      safeNumber(breakdown?.reliability)
+    ),
+  };
 
   const scoreLabel =
     getScoreLabel(safeScore);
@@ -205,6 +239,95 @@ export default function RecommendationCard({
           <Text style={styles.scoreDescription}>
             Based on payout, fees, delivery speed and provider reliability.
           </Text>
+        </View>
+      </View>
+
+      <View style={styles.confidenceCard}>
+        <View style={styles.confidenceIcon}>
+          <Ionicons
+            name="sparkles"
+            size={21}
+            color="#64AFFF"
+          />
+        </View>
+
+        <View style={styles.confidenceContent}>
+          <View style={styles.confidenceHeader}>
+            <Text style={styles.confidenceTitle}>
+              Recommendation Confidence
+            </Text>
+
+            <Text style={styles.confidenceValue}>
+              {Math.round(safeConfidence)}%
+            </Text>
+          </View>
+
+          <AnimatedProgressBar
+            progress={safeConfidence}
+            height={7}
+          />
+
+          <Text style={styles.confidenceCaption}>
+            Confidence reflects how clearly this provider leads the current comparison.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.breakdownCard}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Score Breakdown
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              How the recommendation score was calculated
+            </Text>
+          </View>
+
+          <View style={styles.breakdownBadge}>
+            <Text style={styles.breakdownBadgeText}>
+              5 FACTORS
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.breakdownList}>
+          <BreakdownRow
+            icon="wallet-outline"
+            label="Payout"
+            value={safeBreakdown.payout}
+            weight="40%"
+          />
+
+          <BreakdownRow
+            icon="pricetag-outline"
+            label="Fees"
+            value={safeBreakdown.fee}
+            weight="20%"
+          />
+
+          <BreakdownRow
+            icon="flash-outline"
+            label="Speed"
+            value={safeBreakdown.speed}
+            weight="15%"
+          />
+
+          <BreakdownRow
+            icon="star-outline"
+            label="Rating"
+            value={safeBreakdown.rating}
+            weight="15%"
+          />
+
+          <BreakdownRow
+            icon="shield-checkmark-outline"
+            label="Reliability"
+            value={safeBreakdown.reliability}
+            weight="10%"
+            last
+          />
         </View>
       </View>
 
@@ -404,6 +527,66 @@ export default function RecommendationCard({
         </Text>
       </View>
     </AnimatedCard>
+  );
+}
+
+type BreakdownRowProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: number;
+  weight: string;
+  last?: boolean;
+};
+
+function BreakdownRow({
+  icon,
+  label,
+  value,
+  weight,
+  last = false,
+}: BreakdownRowProps) {
+  const safeValue = clampScore(
+    safeNumber(value)
+  );
+
+  return (
+    <View
+      style={[
+        styles.breakdownRow,
+        !last && styles.breakdownDivider,
+      ]}
+    >
+      <View style={styles.breakdownLeft}>
+        <View style={styles.breakdownIcon}>
+          <Ionicons
+            name={icon}
+            size={17}
+            color="#64AFFF"
+          />
+        </View>
+
+        <View style={styles.breakdownLabelBox}>
+          <Text style={styles.breakdownLabel}>
+            {label}
+          </Text>
+
+          <Text style={styles.breakdownWeight}>
+            Weight {weight}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.breakdownProgressBox}>
+        <AnimatedProgressBar
+          progress={safeValue}
+          height={6}
+        />
+      </View>
+
+      <Text style={styles.breakdownValue}>
+        {Math.round(safeValue)}
+      </Text>
+    </View>
   );
 }
 
@@ -649,6 +832,117 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 14,
     marginTop: 7,
+  },
+  confidenceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(100,175,255,0.08)",
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: "rgba(100,175,255,0.22)",
+    padding: 14,
+    marginTop: 13,
+  },
+  confidenceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(100,175,255,0.12)",
+  },
+  confidenceContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  confidenceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  confidenceTitle: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  confidenceValue: {
+    color: "#64AFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  confidenceCaption: {
+    color: "#7894A7",
+    fontSize: 9,
+    lineHeight: 14,
+    marginTop: 7,
+  },
+  breakdownCard: {
+    backgroundColor: "#16344C",
+    borderRadius: 19,
+    padding: 14,
+    marginTop: 13,
+  },
+  breakdownBadge: {
+    backgroundColor: "rgba(100,175,255,0.12)",
+    borderRadius: 11,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  breakdownBadgeText: {
+    color: "#64AFFF",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  breakdownList: {
+    marginTop: 10,
+  },
+  breakdownRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  breakdownDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#295069",
+  },
+  breakdownLeft: {
+    width: 112,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  breakdownIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(100,175,255,0.10)",
+  },
+  breakdownLabelBox: {
+    marginLeft: 8,
+  },
+  breakdownLabel: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  breakdownWeight: {
+    color: "#6F8DA2",
+    fontSize: 7,
+    marginTop: 2,
+  },
+  breakdownProgressBox: {
+    flex: 1,
+    marginHorizontal: 9,
+  },
+  breakdownValue: {
+    width: 30,
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "right",
   },
   receiveCard: {
     flexDirection: "row",

@@ -37,7 +37,6 @@ import ProviderResults, {
   ProviderDetails,
   ProviderResult,
 } from "../components/compare/ProviderResults";
-import ExchangeRateChart from "../components/charts/ExchangeRateChart";
 
 import useComparison from "../hooks/useComparison";
 import useRecentSearches from "../hooks/useRecentSearches";
@@ -840,12 +839,6 @@ export default function CompareScreen() {
           </View>
         </View>
 
-        <ExchangeRateChart
-          fromCurrency={fromCurrency}
-          toCurrency={toCurrency}
-          currentRate={rate}
-        />
-
         {hasRecommendation &&
         recommendedProvider ? (
           <RecommendationCard
@@ -875,6 +868,12 @@ export default function CompareScreen() {
             }
             reasons={
               recommendedProvider.reasons
+            }
+            confidence={
+              recommendedProvider.confidence
+            }
+            breakdown={
+              recommendedProvider.breakdown
             }
             loading={loading}
             onPress={() =>
