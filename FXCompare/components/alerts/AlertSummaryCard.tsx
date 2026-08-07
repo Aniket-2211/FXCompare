@@ -84,9 +84,7 @@ export default function AlertSummaryCard({
 
         <Text style={styles.checkedText}>
           Checked{" "}
-          {formatCheckedTime(
-            lastChecked
-          )}
+          {formatCheckedTime(lastChecked)}
         </Text>
       </View>
 
