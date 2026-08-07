@@ -1,5 +1,3 @@
-// hooks/useHistoricalRates.ts
-
 import {
   useCallback,
   useEffect,
@@ -7,34 +5,22 @@ import {
 } from "react";
 
 import {
+  fetchHistoricalRates,
   HistoricalRange,
   HistoricalRatePoint,
-} from "../components/historical/HistoricalChart";
-
-import {
-  fetchHistoricalRates,
 } from "../services/historyApi";
 
-type UseHistoricalRatesOptions = {
+type Params = {
   fromCurrency: string;
   toCurrency: string;
-  initialRange?: HistoricalRange;
-  autoLoad?: boolean;
+  range: HistoricalRange;
 };
 
 export default function useHistoricalRates({
   fromCurrency,
   toCurrency,
-  initialRange = "1M",
-  autoLoad = true,
-}: UseHistoricalRatesOptions) {
-  const [
-    selectedRange,
-    setSelectedRange,
-  ] = useState<HistoricalRange>(
-    initialRange
-  );
-
+  range,
+}: Params) {
   const [
     data,
     setData,
@@ -45,152 +31,95 @@ export default function useHistoricalRates({
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] = useState(true);
 
   const [
     error,
     setError,
-  ] = useState<string | null>(
-    null
-  );
+  ] = useState<
+    string | null
+  >(null);
 
-  const [
-    lastUpdated,
-    setLastUpdated,
-  ] = useState<Date | null>(
-    null
-  );
-
-  const loadHistoricalRates =
+  const load =
     useCallback(
       async (
-        range: HistoricalRange =
-          selectedRange
+        signal?: AbortSignal
       ) => {
-        const normalizedFrom =
-          fromCurrency
-            .trim()
-            .toUpperCase();
-
-        const normalizedTo =
-          toCurrency
-            .trim()
-            .toUpperCase();
-
-        if (
-          !normalizedFrom ||
-          !normalizedTo
-        ) {
-          setData([]);
-          setError(
-            "Select a valid currency pair."
-          );
-
-          return;
-        }
-
-        if (
-          normalizedFrom ===
-          normalizedTo
-        ) {
-          setData([]);
-          setError(
-            "Choose two different currencies."
-          );
-
-          return;
-        }
-
         try {
           setLoading(true);
           setError(null);
 
-          const result =
+          const points =
             await fetchHistoricalRates(
-              normalizedFrom,
-              normalizedTo,
-              range
+              {
+                fromCurrency,
+                toCurrency,
+                range,
+                signal,
+              }
             );
 
-          setData(result);
-          setLastUpdated(
-            new Date()
-          );
-        } catch (
-          fetchError
-        ) {
-          console.log(
-            "Historical rates error:",
-            fetchError
-          );
+          setData(points);
+        } catch (err) {
+          if (
+            err instanceof
+              DOMException &&
+            err.name ===
+              "AbortError"
+          ) {
+            return;
+          }
 
-          const message =
-            fetchError instanceof Error
-              ? fetchError.message
-              : "Unable to load historical exchange rates.";
+          if (
+            err instanceof Error &&
+            err.name ===
+              "AbortError"
+          ) {
+            return;
+          }
 
-          setData([]);
-          setError(message);
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load historical rates."
+          );
         } finally {
-          setLoading(false);
+          if (
+            !signal?.aborted
+          ) {
+            setLoading(false);
+          }
         }
       },
       [
         fromCurrency,
         toCurrency,
-        selectedRange,
+        range,
       ]
     );
 
-  const changeRange =
-    useCallback(
-      (
-        range: HistoricalRange
-      ) => {
-        setSelectedRange(range);
-      },
-      []
-    );
-
-  const retry =
-    useCallback(() => {
-      void loadHistoricalRates(
-        selectedRange
-      );
-    }, [
-      loadHistoricalRates,
-      selectedRange,
-    ]);
-
   useEffect(() => {
-    if (!autoLoad) {
-      return;
-    }
+    const controller =
+      new AbortController();
 
-    void loadHistoricalRates(
-      selectedRange
+    void load(
+      controller.signal
     );
-  }, [
-    autoLoad,
-    fromCurrency,
-    toCurrency,
-    selectedRange,
-    loadHistoricalRates,
-  ]);
+
+    return () => {
+      controller.abort();
+    };
+  }, [load]);
+
+  const refresh =
+    useCallback(() => {
+      void load();
+    }, [load]);
 
   return {
     data,
     loading,
     error,
-    lastUpdated,
-
-    selectedRange,
-    setSelectedRange:
-      changeRange,
-
-    fetchHistoricalRates:
-      loadHistoricalRates,
-
-    retry,
+    refresh,
   };
 }

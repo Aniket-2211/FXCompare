@@ -1,333 +1,232 @@
-// services/historyApi.ts
+export type HistoricalRange =
+  | "1D"
+  | "7D"
+  | "30D"
+  | "90D"
+  | "1Y";
 
-import {
-  HistoricalRange,
-  HistoricalRatePoint,
-} from "../components/historical/HistoricalChart";
-
-type FrankfurterRateResponse = {
-  amount?: number;
-  base?: string;
-  start_date?: string;
-  end_date?: string;
-  rates?: Record<
-    string,
-    Record<string, number>
-  >;
+export type HistoricalRatePoint = {
+  date: string;
+  rate: number;
 };
 
-const API_URL =
-  "https://api.frankfurter.dev/v1";
-
-const getDateString = (
-  date: Date
-) => {
-  return date
-    .toISOString()
-    .split("T")[0];
+type FrankfurterRateRow = {
+  date: string;
+  base: string;
+  quote: string;
+  rate: number;
 };
+
+const API_BASE =
+  "https://api.frankfurter.dev/v2";
+
+const formatDate = (date: Date) =>
+  date.toISOString().slice(0, 10);
 
 const subtractDays = (
   date: Date,
   days: number
 ) => {
-  const result = new Date(date);
-
-  result.setDate(
-    result.getDate() - days
+  const copy = new Date(date);
+  copy.setDate(
+    copy.getDate() - days
   );
-
-  return result;
-};
-
-const subtractMonths = (
-  date: Date,
-  months: number
-) => {
-  const result = new Date(date);
-
-  result.setMonth(
-    result.getMonth() - months
-  );
-
-  return result;
+  return copy;
 };
 
 const subtractYears = (
   date: Date,
   years: number
 ) => {
-  const result = new Date(date);
-
-  result.setFullYear(
-    result.getFullYear() - years
+  const copy = new Date(date);
+  copy.setFullYear(
+    copy.getFullYear() - years
   );
-
-  return result;
+  return copy;
 };
 
-const getStartDate = (
-  range: HistoricalRange,
-  endDate: Date
-) => {
-  switch (range) {
-    case "1D":
-      return subtractDays(
-        endDate,
-        5
-      );
-
-    case "7D":
-      return subtractDays(
-        endDate,
-        14
-      );
-
-    case "1M":
-      return subtractMonths(
-        endDate,
-        1
-      );
-
-    case "3M":
-      return subtractMonths(
-        endDate,
-        3
-      );
-
-    case "1Y":
-      return subtractYears(
-        endDate,
-        1
-      );
-
-    default:
-      return subtractMonths(
-        endDate,
-        1
-      );
-  }
-};
-
-const getMaximumPoints = (
+const getRangeConfig = (
   range: HistoricalRange
 ) => {
+  const today = new Date();
+
   switch (range) {
     case "1D":
-      return 2;
+      // Frankfurter provides daily reference rates,
+      // not intraday prices. Fetch a short window
+      // so we can compare the latest two available
+      // business-day observations.
+      return {
+        from: subtractDays(today, 7),
+        to: today,
+        group: undefined,
+      };
 
     case "7D":
-      return 7;
+      return {
+        from: subtractDays(today, 10),
+        to: today,
+        group: undefined,
+      };
 
-    case "1M":
-      return 18;
+    case "30D":
+      return {
+        from: subtractDays(today, 35),
+        to: today,
+        group: undefined,
+      };
 
-    case "3M":
-      return 24;
+    case "90D":
+      return {
+        from: subtractDays(today, 100),
+        to: today,
+        group: "week" as const,
+      };
 
     case "1Y":
-      return 30;
-
-    default:
-      return 18;
+      return {
+        from: subtractYears(today, 1),
+        to: today,
+        group: "month" as const,
+      };
   }
 };
 
-const sampleData = (
-  data: HistoricalRatePoint[],
-  maximumPoints: number
-) => {
-  if (
-    data.length <= maximumPoints
-  ) {
-    return data;
+const normalizeCurrency = (
+  currency: string
+) =>
+  currency
+    .trim()
+    .toUpperCase();
+
+export async function fetchHistoricalRates({
+  fromCurrency,
+  toCurrency,
+  range,
+  signal,
+}: {
+  fromCurrency: string;
+  toCurrency: string;
+  range: HistoricalRange;
+  signal?: AbortSignal;
+}): Promise<
+  HistoricalRatePoint[]
+> {
+  const base =
+    normalizeCurrency(
+      fromCurrency
+    );
+
+  const quote =
+    normalizeCurrency(
+      toCurrency
+    );
+
+  if (!base || !quote) {
+    throw new Error(
+      "Currency pair is required."
+    );
   }
 
-  const sampled:
-    HistoricalRatePoint[] = [];
+  if (base === quote) {
+    return [
+      {
+        date: formatDate(
+          new Date()
+        ),
+        rate: 1,
+      },
+    ];
+  }
 
-  const lastIndex =
-    data.length - 1;
+  const {
+    from,
+    to,
+    group,
+  } = getRangeConfig(range);
 
-  for (
-    let index = 0;
-    index < maximumPoints;
-    index += 1
-  ) {
-    const sourceIndex =
-      Math.round(
-        (index /
-          (maximumPoints - 1)) *
-          lastIndex
-      );
+  const params =
+    new URLSearchParams({
+      base,
+      quotes: quote,
+      from: formatDate(from),
+      to: formatDate(to),
+    });
 
-    const point =
-      data[sourceIndex];
+  if (group) {
+    params.set(
+      "group",
+      group
+    );
+  }
 
-    if (
-      !sampled.some(
-        (item) =>
-          item.date === point.date
-      )
-    ) {
-      sampled.push(point);
+  const response = await fetch(
+    `${API_BASE}/rates?${params.toString()}`,
+    {
+      signal,
+      headers: {
+        Accept:
+          "application/json",
+      },
     }
-  }
-
-  const finalPoint =
-    data[lastIndex];
-
-  if (
-    sampled[
-      sampled.length - 1
-    ]?.date !== finalPoint.date
-  ) {
-    sampled.push(finalPoint);
-  }
-
-  return sampled;
-};
-
-const isValidRate = (
-  value: unknown
-): value is number => {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value > 0
   );
-};
-
-export async function fetchHistoricalRates(
-  fromCurrency: string,
-  toCurrency: string,
-  range: HistoricalRange
-): Promise<HistoricalRatePoint[]> {
-  const normalizedFrom =
-    fromCurrency
-      .trim()
-      .toUpperCase();
-
-  const normalizedTo =
-    toCurrency
-      .trim()
-      .toUpperCase();
-
-  if (
-    !normalizedFrom ||
-    !normalizedTo
-  ) {
-    throw new Error(
-      "Select a valid currency pair."
-    );
-  }
-
-  if (
-    normalizedFrom ===
-    normalizedTo
-  ) {
-    throw new Error(
-      "Historical data requires two different currencies."
-    );
-  }
-
-  const endDate = new Date();
-
-  const startDate =
-    getStartDate(
-      range,
-      endDate
-    );
-
-  const startDateString =
-    getDateString(startDate);
-
-  const endDateString =
-    getDateString(endDate);
-
-  const requestUrl =
-    `${API_URL}/${startDateString}` +
-    `..${endDateString}` +
-    `?base=${encodeURIComponent(
-      normalizedFrom
-    )}` +
-    `&symbols=${encodeURIComponent(
-      normalizedTo
-    )}`;
-
-  const response =
-    await fetch(requestUrl);
 
   if (!response.ok) {
-    throw new Error(
-      "Unable to load historical exchange rates."
-    );
+    let message =
+      "Unable to load historical rates.";
+
+    try {
+      const body =
+        await response.json();
+
+      if (
+        body &&
+        typeof body.message ===
+          "string"
+      ) {
+        message =
+          body.message;
+      }
+    } catch {
+      // Keep the default message.
+    }
+
+    throw new Error(message);
   }
 
-  const result =
-    (await response.json()) as FrankfurterRateResponse;
+  const rows =
+    (await response.json()) as
+      FrankfurterRateRow[];
 
-  if (
-    !result.rates ||
-    typeof result.rates !==
-      "object"
-  ) {
-    throw new Error(
-      "Invalid historical exchange-rate data received."
-    );
-  }
-
-  const historicalData =
-    Object.entries(
-      result.rates
+  const points = rows
+    .filter(
+      (row) =>
+        row.quote === quote &&
+        Number.isFinite(
+          row.rate
+        )
     )
-      .map(
-        ([
-          date,
-          dailyRates,
-        ]) => {
-          const rate =
-            dailyRates[
-              normalizedTo
-            ];
-
-          return {
-            date,
-            rate,
-          };
-        }
+    .map((row) => ({
+      date: row.date,
+      rate: row.rate,
+    }))
+    .sort((a, b) =>
+      a.date.localeCompare(
+        b.date
       )
-      .filter(
-        (
-          item
-        ): item is HistoricalRatePoint =>
-          typeof item.date ===
-            "string" &&
-          isValidRate(item.rate)
-      )
-      .sort(
-        (
-          first,
-          second
-        ) =>
-          first.date.localeCompare(
-            second.date
-          )
-      );
-
-  if (
-    historicalData.length === 0
-  ) {
-    throw new Error(
-      `No historical rates are available for ${normalizedFrom}/${normalizedTo}.`
     );
+
+  if (range === "1D") {
+    return points.slice(-2);
   }
 
-  const maximumPoints =
-    getMaximumPoints(range);
+  if (range === "7D") {
+    return points.slice(-7);
+  }
 
-  return sampleData(
-    historicalData,
-    maximumPoints
-  );
+  if (range === "30D") {
+    return points.slice(-30);
+  }
+
+  return points;
 }
