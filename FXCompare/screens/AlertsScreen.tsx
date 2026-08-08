@@ -14,10 +14,15 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  SafeAreaView,
+} from "react-native-safe-area-context";
+import {
+  Ionicons,
+} from "@expo/vector-icons";
 
 import ScreenHeader from "../components/ScreenHeader";
 import AlertSummaryCard from "../components/alerts/AlertSummaryCard";
@@ -25,6 +30,7 @@ import CreateAlertCard from "../components/alerts/CreateAlertCard";
 import AlertCard from "../components/alerts/AlertCard";
 import AlertList from "../components/alerts/AlertList";
 import EmptyState from "../components/alerts/EmptyState";
+import SmartAlertInsightCard from "../components/alerts/SmartAlertInsightCard";
 import CurrencyPickerModal, {
   CurrencyOption,
   currencyOptions,
@@ -46,7 +52,10 @@ import {
   sendRateAlertNotification,
 } from "../services/notificationService";
 
-type PickerType = "from" | "to" | null;
+type PickerType =
+  | "from"
+  | "to"
+  | null;
 
 type AlertStatus =
   | "reached"
@@ -54,7 +63,15 @@ type AlertStatus =
   | "waiting"
   | "unavailable";
 
-const AUTO_REFRESH_INTERVAL = 30000;
+type AlertFilter =
+  | "all"
+  | "active"
+  | "close"
+  | "reached"
+  | "paused";
+
+const AUTO_REFRESH_INTERVAL =
+  30000;
 
 const getCurrencyDetails = (
   currencyCode: string
@@ -62,7 +79,8 @@ const getCurrencyDetails = (
   return (
     currencyOptions.find(
       (currency) =>
-        currency.code === currencyCode
+        currency.code ===
+        currencyCode
     ) ?? {
       code: currencyCode,
       name: currencyCode,
@@ -72,50 +90,28 @@ const getCurrencyDetails = (
   );
 };
 
-const formatRate = (
-  value: number | undefined
-) => {
-  if (
-    value === undefined ||
-    !Number.isFinite(value)
-  ) {
-    return "--";
-  }
-
-  return new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(value);
-};
-
-const formatCheckedTime = (
-  date: Date | null
-) => {
-  if (!date) {
-    return "Not checked";
-  }
-
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 const getAlertStatus = (
   item: SavedRateAlert,
-  currentRate: number | undefined
+  currentRate:
+    | number
+    | undefined
 ): AlertStatus => {
   if (
     currentRate === undefined ||
-    !Number.isFinite(currentRate)
+    !Number.isFinite(
+      currentRate
+    )
   ) {
     return "unavailable";
   }
 
   const reached =
-    item.condition === "above"
-      ? currentRate >= item.targetRate
-      : currentRate <= item.targetRate;
+    item.condition ===
+    "above"
+      ? currentRate >=
+        item.targetRate
+      : currentRate <=
+        item.targetRate;
 
   if (reached) {
     return "reached";
@@ -123,10 +119,14 @@ const getAlertStatus = (
 
   const percentageDifference =
     Math.abs(
-      currentRate - item.targetRate
+      currentRate -
+        item.targetRate
     ) / item.targetRate;
 
-  if (percentageDifference <= 0.01) {
+  if (
+    percentageDifference <=
+    0.01
+  ) {
     return "close";
   }
 
@@ -135,17 +135,22 @@ const getAlertStatus = (
 
 const getDistanceToTarget = (
   item: SavedRateAlert,
-  currentRate: number | undefined
+  currentRate:
+    | number
+    | undefined
 ) => {
   if (
     currentRate === undefined ||
-    !Number.isFinite(currentRate)
+    !Number.isFinite(
+      currentRate
+    )
   ) {
     return null;
   }
 
   return Math.abs(
-    item.targetRate - currentRate
+    item.targetRate -
+      currentRate
   );
 };
 
@@ -167,12 +172,16 @@ export default function AlertsScreen() {
   const [
     fromCurrency,
     setFromCurrency,
-  ] = useState(defaultFromCurrency);
+  ] = useState(
+    defaultFromCurrency
+  );
 
   const [
     toCurrency,
     setToCurrency,
-  ] = useState(defaultToCurrency);
+  ] = useState(
+    defaultToCurrency
+  );
 
   const [
     targetRate,
@@ -182,22 +191,37 @@ export default function AlertsScreen() {
   const [
     condition,
     setCondition,
-  ] = useState<AlertCondition>(
-    "above"
-  );
+  ] =
+    useState<AlertCondition>(
+      "above"
+    );
 
   const [
     pickerType,
     setPickerType,
-  ] = useState<PickerType>(null);
+  ] =
+    useState<PickerType>(
+      null
+    );
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    alertFilter,
+    setAlertFilter,
+  ] =
+    useState<AlertFilter>(
+      "all"
+    );
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
   const [
     refreshingRates,
     setRefreshingRates,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     liveRates,
@@ -209,12 +233,18 @@ export default function AlertsScreen() {
   const [
     failedPairs,
     setFailedPairs,
-  ] = useState<string[]>([]);
+  ] =
+    useState<string[]>(
+      []
+    );
 
   const [
     lastChecked,
     setLastChecked,
-  ] = useState<Date | null>(null);
+  ] =
+    useState<Date | null>(
+      null
+    );
 
   const [
     deviceNotificationsReady,
@@ -282,55 +312,16 @@ export default function AlertsScreen() {
     defaultToCurrency,
   ]);
 
-  const enabledAlerts = useMemo(
-    () =>
-      savedAlerts.filter(
-        (item) => item.enabled
-      ).length,
-    [savedAlerts]
-  );
-
-  const reachedAlerts = useMemo(
-    () =>
-      savedAlerts.filter((item) => {
-        const pairKey = getPairKey(
-          item.fromCurrency,
-          item.toCurrency
-        );
-
-        return (
-          getAlertStatus(
-            item,
-            liveRates[pairKey]
-          ) === "reached"
-        );
-      }).length,
-    [savedAlerts, liveRates]
-  );
-
-  const fromDetails =
-    getCurrencyDetails(
-      fromCurrency
-    );
-
-  const toDetails =
-    getCurrencyDetails(
-      toCurrency
-    );
-
-  const selectedPickerCurrency =
-    pickerType === "from"
-      ? fromCurrency
-      : toCurrency;
-
   const refreshLiveRates =
     useCallback(
       async (
-        showRefreshIndicator = true
+        showRefreshIndicator =
+          true
       ) => {
         if (
           loadingSettings ||
-          savedAlerts.length === 0
+          savedAlerts.length ===
+            0
         ) {
           setLiveRates({});
           setFailedPairs([]);
@@ -338,8 +329,12 @@ export default function AlertsScreen() {
         }
 
         try {
-          if (showRefreshIndicator) {
-            setRefreshingRates(true);
+          if (
+            showRefreshIndicator
+          ) {
+            setRefreshingRates(
+              true
+            );
           }
 
           const requests =
@@ -347,7 +342,6 @@ export default function AlertsScreen() {
               (item) => ({
                 fromCurrency:
                   item.fromCurrency,
-
                 toCurrency:
                   item.toCurrency,
               })
@@ -380,8 +374,12 @@ export default function AlertsScreen() {
             "Check your internet connection and try again."
           );
         } finally {
-          if (showRefreshIndicator) {
-            setRefreshingRates(false);
+          if (
+            showRefreshIndicator
+          ) {
+            setRefreshingRates(
+              false
+            );
           }
         }
       },
@@ -394,16 +392,21 @@ export default function AlertsScreen() {
   useEffect(() => {
     if (
       loadingSettings ||
-      savedAlerts.length === 0
+      savedAlerts.length ===
+        0
     ) {
       return;
     }
 
-    void refreshLiveRates(false);
+    void refreshLiveRates(
+      false
+    );
 
     const refreshTimer =
       setInterval(() => {
-        void refreshLiveRates(false);
+        void refreshLiveRates(
+          false
+        );
       }, AUTO_REFRESH_INTERVAL);
 
     return () => {
@@ -442,13 +445,13 @@ export default function AlertsScreen() {
           getAlertStatus(
             item,
             currentRate
-          ) === "reached";
+          ) ===
+            "reached";
 
         if (!reached) {
           notifiedAlertIds.current.delete(
             item.id
           );
-
           return;
         }
 
@@ -464,21 +467,28 @@ export default function AlertsScreen() {
           item.id
         );
 
-        void sendRateAlertNotification({
-          alertId: item.id,
-          fromCurrency:
-            item.fromCurrency,
-          toCurrency:
-            item.toCurrency,
-          currentRate:
-            currentRate as number,
-          targetRate:
-            item.targetRate,
-          condition:
-            item.condition,
-        }).then(
-          (notificationId) => {
-            if (!notificationId) {
+        void sendRateAlertNotification(
+          {
+            alertId:
+              item.id,
+            fromCurrency:
+              item.fromCurrency,
+            toCurrency:
+              item.toCurrency,
+            currentRate:
+              currentRate as number,
+            targetRate:
+              item.targetRate,
+            condition:
+              item.condition,
+          }
+        ).then(
+          (
+            notificationId
+          ) => {
+            if (
+              !notificationId
+            ) {
               notifiedAlertIds.current.delete(
                 item.id
               );
@@ -487,25 +497,6 @@ export default function AlertsScreen() {
         );
       }
     );
-
-    const savedAlertIds =
-      new Set(
-        savedAlerts.map(
-          (item) => item.id
-        )
-      );
-
-    Array.from(
-      notifiedAlertIds.current
-    ).forEach((alertId) => {
-      if (
-        !savedAlertIds.has(alertId)
-      ) {
-        notifiedAlertIds.current.delete(
-          alertId
-        );
-      }
-    });
   }, [
     loadingSettings,
     notificationsEnabled,
@@ -514,64 +505,210 @@ export default function AlertsScreen() {
     liveRates,
   ]);
 
-  const swapCurrencies = () => {
-    const previousFrom =
-      fromCurrency;
+  const enabledAlerts =
+    useMemo(
+      () =>
+        savedAlerts.filter(
+          (item) =>
+            item.enabled
+        ).length,
+      [savedAlerts]
+    );
 
-    setFromCurrency(
+  const reachedAlerts =
+    useMemo(
+      () =>
+        savedAlerts.filter(
+          (item) => {
+            const pairKey =
+              getPairKey(
+                item.fromCurrency,
+                item.toCurrency
+              );
+
+            return (
+              getAlertStatus(
+                item,
+                liveRates[
+                  pairKey
+                ]
+              ) ===
+              "reached"
+            );
+          }
+        ).length,
+      [
+        savedAlerts,
+        liveRates,
+      ]
+    );
+
+  const closeAlerts =
+    useMemo(
+      () =>
+        savedAlerts.filter(
+          (item) => {
+            const pairKey =
+              getPairKey(
+                item.fromCurrency,
+                item.toCurrency
+              );
+
+            return (
+              getAlertStatus(
+                item,
+                liveRates[
+                  pairKey
+                ]
+              ) ===
+              "close"
+            );
+          }
+        ).length,
+      [
+        savedAlerts,
+        liveRates,
+      ]
+    );
+
+  const filteredAlerts =
+    useMemo(() => {
+      return savedAlerts.filter(
+        (item) => {
+          const pairKey =
+            getPairKey(
+              item.fromCurrency,
+              item.toCurrency
+            );
+
+          const status =
+            getAlertStatus(
+              item,
+              liveRates[
+                pairKey
+              ]
+            );
+
+          switch (
+            alertFilter
+          ) {
+            case "active":
+              return item.enabled;
+
+            case "paused":
+              return !item.enabled;
+
+            case "close":
+              return (
+                status ===
+                "close"
+              );
+
+            case "reached":
+              return (
+                status ===
+                "reached"
+              );
+
+            case "all":
+            default:
+              return true;
+          }
+        }
+      );
+    }, [
+      savedAlerts,
+      liveRates,
+      alertFilter,
+    ]);
+
+  const fromDetails =
+    getCurrencyDetails(
+      fromCurrency
+    );
+
+  const toDetails =
+    getCurrencyDetails(
       toCurrency
     );
 
-    setToCurrency(
-      previousFrom
-    );
-  };
+  const selectedPickerCurrency =
+    pickerType === "from"
+      ? fromCurrency
+      : toCurrency;
 
-  const handleCurrencySelect = (
-    currency: CurrencyOption
-  ) => {
-    if (pickerType === "from") {
+  const swapCurrencies =
+    () => {
+      const previousFrom =
+        fromCurrency;
+
       setFromCurrency(
-        currency.code
+        toCurrency
       );
-    }
 
-    if (pickerType === "to") {
       setToCurrency(
-        currency.code
+        previousFrom
       );
-    }
+    };
 
-    setPickerType(null);
-  };
+  const handleCurrencySelect =
+    (
+      currency: CurrencyOption
+    ) => {
+      if (
+        pickerType === "from"
+      ) {
+        setFromCurrency(
+          currency.code
+        );
+      }
 
-  const handleTargetRateChange = (
-    text: string
-  ) => {
-    const cleaned = text.replace(
-      /[^0-9.]/g,
-      ""
-    );
+      if (
+        pickerType === "to"
+      ) {
+        setToCurrency(
+          currency.code
+        );
+      }
 
-    const parts =
-      cleaned.split(".");
+      setPickerType(
+        null
+      );
+    };
 
-    if (parts.length <= 1) {
-      setTargetRate(cleaned);
-      return;
-    }
+  const handleTargetRateChange =
+    (text: string) => {
+      const cleaned =
+        text.replace(
+          /[^0-9.]/g,
+          ""
+        );
 
-    setTargetRate(
-      `${parts[0]}.${parts
-        .slice(1)
-        .join("")}`
-    );
-  };
+      const parts =
+        cleaned.split(".");
+
+      if (
+        parts.length <= 1
+      ) {
+        setTargetRate(
+          cleaned
+        );
+        return;
+      }
+
+      setTargetRate(
+        `${parts[0]}.${parts
+          .slice(1)
+          .join("")}`
+      );
+    };
 
   const createAlert =
     async () => {
       const parsedTargetRate =
-        Number(targetRate);
+        Number(
+          targetRate
+        );
 
       if (
         !Number.isFinite(
@@ -583,7 +720,6 @@ export default function AlertsScreen() {
           "Invalid target rate",
           "Please enter a valid exchange rate."
         );
-
         return;
       }
 
@@ -595,11 +731,11 @@ export default function AlertsScreen() {
           "Choose different currencies",
           "The sending and receiving currencies must be different."
         );
-
         return;
       }
 
-      const newAlert: SavedRateAlert = {
+      const newAlert:
+        SavedRateAlert = {
         id: `${Date.now()}`,
         fromCurrency,
         toCurrency,
@@ -634,89 +770,96 @@ export default function AlertsScreen() {
           "Please try again."
         );
       } finally {
-        setSaving(false);
+        setSaving(
+          false
+        );
       }
     };
 
-  const toggleAlert = async (
-    item: SavedRateAlert
-  ) => {
-    if (
-      !notificationsEnabled &&
-      !item.enabled
-    ) {
-      Alert.alert(
-        "Notifications disabled",
-        "Enable notifications from the Profile tab before activating this alert."
-      );
-
-      return;
-    }
-
-    try {
-      if (item.enabled) {
-        notifiedAlertIds.current.delete(
-          item.id
+  const toggleAlert =
+    async (
+      item: SavedRateAlert
+    ) => {
+      if (
+        !notificationsEnabled &&
+        !item.enabled
+      ) {
+        Alert.alert(
+          "Notifications disabled",
+          "Enable notifications from the Profile tab before activating this alert."
         );
+        return;
       }
 
-      await updateSavedAlert({
-        ...item,
-        enabled:
-          !item.enabled,
-      });
-    } catch (error) {
-      console.log(
-        "Toggle alert error:",
-        error
-      );
+      try {
+        if (
+          item.enabled
+        ) {
+          notifiedAlertIds.current.delete(
+            item.id
+          );
+        }
 
+        await updateSavedAlert(
+          {
+            ...item,
+            enabled:
+              !item.enabled,
+          }
+        );
+      } catch (error) {
+        console.log(
+          "Toggle alert error:",
+          error
+        );
+
+        Alert.alert(
+          "Unable to update alert",
+          "Please try again."
+        );
+      }
+    };
+
+  const confirmDeleteAlert =
+    (alertId: string) => {
       Alert.alert(
-        "Unable to update alert",
-        "Please try again."
-      );
-    }
-  };
-
-  const confirmDeleteAlert = (
-    alertId: string
-  ) => {
-    Alert.alert(
-      "Delete alert?",
-      "This saved rate alert will be permanently removed.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              notifiedAlertIds.current.delete(
-                alertId
-              );
-
-              await deleteSavedAlert(
-                alertId
-              );
-            } catch (error) {
-              console.log(
-                "Delete alert error:",
-                error
-              );
-
-              Alert.alert(
-                "Unable to delete alert",
-                "Please try again."
-              );
-            }
+        "Delete alert?",
+        "This saved rate alert will be permanently removed.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
+          {
+            text: "Delete",
+            style:
+              "destructive",
+            onPress:
+              async () => {
+                try {
+                  notifiedAlertIds.current.delete(
+                    alertId
+                  );
+
+                  await deleteSavedAlert(
+                    alertId
+                  );
+                } catch (error) {
+                  console.log(
+                    "Delete alert error:",
+                    error
+                  );
+
+                  Alert.alert(
+                    "Unable to delete alert",
+                    "Please try again."
+                  );
+                }
+              },
+          },
+        ]
+      );
+    };
 
   return (
     <SafeAreaView
@@ -728,9 +871,12 @@ export default function AlertsScreen() {
       />
 
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={
+          styles.keyboardView
+        }
         behavior={
-          Platform.OS === "ios"
+          Platform.OS ===
+          "ios"
             ? "padding"
             : undefined
         }
@@ -749,10 +895,14 @@ export default function AlertsScreen() {
                 refreshingRates
               }
               onRefresh={() =>
-                refreshLiveRates(true)
+                refreshLiveRates(
+                  true
+                )
               }
               tintColor="#2FE58C"
-              colors={["#2FE58C"]}
+              colors={[
+                "#2FE58C",
+              ]}
               progressBackgroundColor="#0E2C43"
             />
           }
@@ -763,7 +913,9 @@ export default function AlertsScreen() {
             showAction
             actionIcon="refresh"
             onActionPress={() =>
-              refreshLiveRates(true)
+              refreshLiveRates(
+                true
+              )
             }
           />
 
@@ -782,6 +934,25 @@ export default function AlertsScreen() {
             }
             lastChecked={
               lastChecked
+            }
+          />
+
+          <SmartAlertInsightCard
+            totalAlerts={
+              savedAlerts.length
+            }
+            enabledAlerts={
+              enabledAlerts
+            }
+            reachedAlerts={
+              reachedAlerts
+            }
+            closeAlerts={
+              closeAlerts
+            }
+            notificationsReady={
+              notificationsEnabled &&
+              deviceNotificationsReady
             }
           />
 
@@ -810,7 +981,8 @@ export default function AlertsScreen() {
             </View>
           ) : null}
 
-          {failedPairs.length > 0 ? (
+          {failedPairs.length >
+          0 ? (
             <View
               style={
                 styles.errorCard
@@ -827,8 +999,7 @@ export default function AlertsScreen() {
                   styles.errorText
                 }
               >
-                Some live rates could not be
-                loaded. Pull down to try again.
+                Some live rates could not be loaded. Pull down to try again.
               </Text>
             </View>
           ) : null}
@@ -852,7 +1023,9 @@ export default function AlertsScreen() {
             targetRate={
               targetRate
             }
-            saving={saving}
+            saving={
+              saving
+            }
             loadingSettings={
               loadingSettings
             }
@@ -906,10 +1079,90 @@ export default function AlertsScreen() {
                   styles.countText
                 }
               >
-                {savedAlerts.length}
+                {
+                  filteredAlerts.length
+                }
               </Text>
             </View>
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={
+              false
+            }
+            contentContainerStyle={
+              styles.filterContent
+            }
+            style={
+              styles.filterScroll
+            }
+          >
+            <AlertFilterButton
+              label="All"
+              active={
+                alertFilter ===
+                "all"
+              }
+              onPress={() =>
+                setAlertFilter(
+                  "all"
+                )
+              }
+            />
+
+            <AlertFilterButton
+              label="Active"
+              active={
+                alertFilter ===
+                "active"
+              }
+              onPress={() =>
+                setAlertFilter(
+                  "active"
+                )
+              }
+            />
+
+            <AlertFilterButton
+              label="Near"
+              active={
+                alertFilter ===
+                "close"
+              }
+              onPress={() =>
+                setAlertFilter(
+                  "close"
+                )
+              }
+            />
+
+            <AlertFilterButton
+              label="Reached"
+              active={
+                alertFilter ===
+                "reached"
+              }
+              onPress={() =>
+                setAlertFilter(
+                  "reached"
+                )
+              }
+            />
+
+            <AlertFilterButton
+              label="Paused"
+              active={
+                alertFilter ===
+                "paused"
+              }
+              onPress={() =>
+                setAlertFilter(
+                  "paused"
+                )
+              }
+            />
+          </ScrollView>
 
           {loadingSettings ? (
             <EmptyState
@@ -924,121 +1177,143 @@ export default function AlertsScreen() {
               title="No alerts created"
               message="Create your first target-rate alert using the form above."
             />
-           ) : (
+          ) : filteredAlerts.length ===
+            0 ? (
+            <EmptyState
+              icon="filter-outline"
+              title="No matching alerts"
+              message="Try another alert filter."
+            />
+          ) : (
             <AlertList>
-            {savedAlerts.map(
-              (item) => {
-                const pairKey =
-                  getPairKey(
-                    item.fromCurrency,
-                    item.toCurrency
-                  );
+              {filteredAlerts.map(
+                (item) => {
+                  const pairKey =
+                    getPairKey(
+                      item.fromCurrency,
+                      item.toCurrency
+                    );
 
-                const currentRate =
-                  liveRates[pairKey];
+                  const currentRate =
+                    liveRates[
+                      pairKey
+                    ];
 
-                const status =
-                  getAlertStatus(
-                    item,
-                    currentRate
-                  );
-
-                const distance =
-                  getDistanceToTarget(
-                    item,
-                    currentRate
-                  );
-
-                const from =
-                  getCurrencyDetails(
-                    item.fromCurrency
-                  );
-
-                const to =
-                  getCurrencyDetails(
-                    item.toCurrency
-                  );
-
-                const statusConfig = {
-                  reached: {
-                    title:
-                      "TARGET REACHED",
-                    icon:
-                      "checkmark-circle" as const,
-                    color:
-                      "#2FE58C",
-                    background:
-                      "rgba(47,229,140,0.12)",
-                  },
-
-                  close: {
-                    title:
-                      "CLOSE",
-                    icon:
-                      "navigate-circle" as const,
-                    color:
-                      "#FFD65A",
-                    background:
-                      "rgba(255,214,90,0.12)",
-                  },
-
-                  waiting: {
-                    title:
-                      "WAITING",
-                    icon:
-                      "time" as const,
-                    color:
-                      "#64AFFF",
-                    background:
-                      "rgba(100,175,255,0.12)",
-                  },
-
-                  unavailable: {
-                    title:
-                      "UNAVAILABLE",
-                    icon:
-                      "cloud-offline" as const,
-                    color:
-                      "#FF9C70",
-                    background:
-                      "rgba(255,156,112,0.12)",
-                  },
-                }[status];
-
-                return (
-                  <AlertCard
-                    key={item.id}
-                    item={item}
-                    from={from}
-                    to={to}
-                    currentRate={
+                  const status =
+                    getAlertStatus(
+                      item,
                       currentRate
-                    }
-                    distance={
-                      distance
-                    }
-                    status={status}
-                    statusConfig={
-                      statusConfig
-                    }
-                    lastChecked={
-                      lastChecked
-                    }
-                    loadingSettings={
-                      loadingSettings
-                    }
-                    onToggle={(alert) => {
-                      void toggleAlert(
+                    );
+
+                  const distance =
+                    getDistanceToTarget(
+                      item,
+                      currentRate
+                    );
+
+                  const from =
+                    getCurrencyDetails(
+                      item.fromCurrency
+                    );
+
+                  const to =
+                    getCurrencyDetails(
+                      item.toCurrency
+                    );
+
+                  const statusConfig =
+                    {
+                      reached: {
+                        title:
+                          "TARGET REACHED",
+                        icon:
+                          "checkmark-circle" as const,
+                        color:
+                          "#2FE58C",
+                        background:
+                          "rgba(47,229,140,0.12)",
+                      },
+
+                      close: {
+                        title:
+                          "CLOSE",
+                        icon:
+                          "navigate-circle" as const,
+                        color:
+                          "#FFD65A",
+                        background:
+                          "rgba(255,214,90,0.12)",
+                      },
+
+                      waiting: {
+                        title:
+                          "WAITING",
+                        icon:
+                          "time" as const,
+                        color:
+                          "#64AFFF",
+                        background:
+                          "rgba(100,175,255,0.12)",
+                      },
+
+                      unavailable: {
+                        title:
+                          "UNAVAILABLE",
+                        icon:
+                          "cloud-offline" as const,
+                        color:
+                          "#FF9C70",
+                        background:
+                          "rgba(255,156,112,0.12)",
+                      },
+                    }[
+                      status
+                    ];
+
+                  return (
+                    <AlertCard
+                      key={
+                        item.id
+                      }
+                      item={
+                        item
+                      }
+                      from={
+                        from
+                      }
+                      to={to}
+                      currentRate={
+                        currentRate
+                      }
+                      distance={
+                        distance
+                      }
+                      status={
+                        status
+                      }
+                      statusConfig={
+                        statusConfig
+                      }
+                      lastChecked={
+                        lastChecked
+                      }
+                      loadingSettings={
+                        loadingSettings
+                      }
+                      onToggle={(
                         alert
-                      );
-                    }}
-                    onDelete={
-                      confirmDeleteAlert
-                    }
-                  />
-                );
-              }
-             )}
+                      ) => {
+                        void toggleAlert(
+                          alert
+                        );
+                      }}
+                      onDelete={
+                        confirmDeleteAlert
+                      }
+                    />
+                  );
+                }
+              )}
             </AlertList>
           )}
 
@@ -1058,12 +1333,7 @@ export default function AlertsScreen() {
                 styles.infoText
               }
             >
-              Active alerts are checked every
-              30 seconds while FXCompare is open.
-              A device notification is sent once
-              when a target is reached and can
-              trigger again after the rate moves
-              away from the target.
+              Active alerts are checked every 30 seconds while FXCompare is open. A device notification is sent once when a target is reached and can trigger again after the rate moves away from the target.
             </Text>
           </View>
         </ScrollView>
@@ -1071,10 +1341,12 @@ export default function AlertsScreen() {
 
       <CurrencyPickerModal
         visible={
-          pickerType !== null
+          pickerType !==
+          null
         }
         title={
-          pickerType === "from"
+          pickerType ===
+          "from"
             ? "Select Base Currency"
             : "Select Target Currency"
         }
@@ -1082,7 +1354,9 @@ export default function AlertsScreen() {
           selectedPickerCurrency
         }
         onClose={() =>
-          setPickerType(null)
+          setPickerType(
+            null
+          )
         }
         onSelect={
           handleCurrencySelect
@@ -1092,10 +1366,43 @@ export default function AlertsScreen() {
   );
 }
 
+function AlertFilterButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.82}
+      style={[
+        styles.filterButton,
+        active &&
+          styles.activeFilterButton,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.filterText,
+          active &&
+            styles.activeFilterText,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#071521",
+    backgroundColor:
+      "#071521",
   },
 
   keyboardView: {
@@ -1153,9 +1460,16 @@ const styles = StyleSheet.create({
   listHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 13,
+    justifyContent:
+      "space-between",
+    marginBottom: 10,
     paddingHorizontal: 2,
+  },
+
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
   },
 
   listSubtitle: {
@@ -1170,9 +1484,11 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#16344C",
+    backgroundColor:
+      "#16344C",
     borderWidth: 1,
-    borderColor: "#21516E",
+    borderColor:
+      "#21516E",
   },
 
   countText: {
@@ -1181,40 +1497,52 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  emptyCard: {
-    minHeight: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0E2C43",
-    borderRadius: 22,
+  filterScroll: {
+    marginBottom: 14,
+  },
+
+  filterContent: {
+    paddingRight: 4,
+  },
+
+  filterButton: {
+    backgroundColor:
+      "#0E2C43",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#194661",
-    paddingHorizontal: 25,
-    marginBottom: 18,
+    borderColor:
+      "#194661",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginRight: 8,
   },
 
-  emptyTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
-    marginTop: 13,
+  activeFilterButton: {
+    backgroundColor:
+      "#1687E8",
+    borderColor:
+      "#1687E8",
   },
 
-  emptyText: {
+  filterText: {
     color: "#829CAF",
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 7,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+
+  activeFilterText: {
+    color: "#FFFFFF",
   },
 
   infoCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#0E2C43",
+    backgroundColor:
+      "#0E2C43",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#194661",
+    borderColor:
+      "#194661",
     padding: 15,
     marginTop: 4,
   },

@@ -4,6 +4,7 @@ import React, {
 } from "react";
 
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,14 +21,13 @@ import {
   Ionicons,
 } from "@expo/vector-icons";
 
-type ProviderContext = {
-  name: string;
-  rate: number;
-  fee: number;
-  finalAmount: number;
-  deliveryTime: string;
-  rating: number;
-};
+import {
+  askFXCompareAI,
+  isRemoteAIConfigured,
+  type AIChatMessage,
+  type AIProviderContext,
+  type FXCompareAIContext,
+} from "../../services/aiService";
 
 type Props = {
   visible: boolean;
@@ -38,22 +38,42 @@ type Props = {
   toCurrency: string;
   referenceRate: number;
 
-  bestProvider: ProviderContext | null;
-  secondBestProvider: ProviderContext | null;
+  bestProvider:
+    | AIProviderContext
+    | null;
+  secondBestProvider:
+    | AIProviderContext
+    | null;
 
   estimatedSavings: number;
 };
 
 type Message = {
   id: string;
-  role: "user" | "assistant";
+  role:
+    | "user"
+    | "assistant";
   text: string;
+  source?:
+    | "remote"
+    | "local";
 };
+
+const suggestedQuestions = [
+  "Which provider is best right now?",
+  "Why is this provider recommended?",
+  "Which provider has the lowest fee?",
+  "Which provider is fastest?",
+  "How much can I save?",
+  "Should I transfer today?",
+];
 
 const formatAmount = (
   value: number
 ) => {
-  if (!Number.isFinite(value)) {
+  if (
+    !Number.isFinite(value)
+  ) {
     return "0.00";
   }
 
@@ -69,7 +89,9 @@ const formatAmount = (
 const formatRate = (
   value: number
 ) => {
-  if (!Number.isFinite(value)) {
+  if (
+    !Number.isFinite(value)
+  ) {
     return "--";
   }
 
@@ -82,14 +104,70 @@ const formatRate = (
   ).format(value);
 };
 
-const suggestedQuestions = [
-  "Which provider is best right now?",
-  "Why is this provider recommended?",
-  "Which provider has the lowest fee?",
-  "Which provider is fastest?",
-  "How much can I save?",
-  "Should I transfer today?",
-];
+const getMinutes = (
+  text: string
+) => {
+  const value =
+    text.toLowerCase();
+
+  if (
+    value.includes(
+      "instant"
+    )
+  ) {
+    return 1;
+  }
+
+  const numbers =
+    value.match(
+      /\d+(?:\.\d+)?/g
+    );
+
+  if (!numbers) {
+    return 9999;
+  }
+
+  const average =
+    numbers
+      .map(Number)
+      .reduce(
+        (
+          sum,
+          number
+        ) =>
+          sum +
+          number,
+        0
+      ) /
+    numbers.length;
+
+  if (
+    value.includes(
+      "day"
+    )
+  ) {
+    return (
+      average *
+      1440
+    );
+  }
+
+  if (
+    value.includes(
+      "hour"
+    ) ||
+    value.includes(
+      "hr"
+    )
+  ) {
+    return (
+      average *
+      60
+    );
+  }
+
+  return average;
+};
 
 export default function FXCompareAISheet({
   visible,
@@ -108,17 +186,27 @@ export default function FXCompareAISheet({
   const [
     input,
     setInput,
-  ] = useState("");
+  ] =
+    useState("");
+
+  const [
+    sending,
+    setSending,
+  ] =
+    useState(false);
 
   const [
     messages,
     setMessages,
-  ] = useState<Message[]>([
+  ] = useState<
+    Message[]
+  >([
     {
       id: "welcome",
       role: "assistant",
       text:
-        "I can explain your current FXCompare results, provider ranking, fees, speed and estimated savings.",
+        "I can explain the current FXCompare comparison, rates, fees, delivery speed and estimated savings.",
+      source: "local",
     },
   ]);
 
@@ -127,26 +215,39 @@ export default function FXCompareAISheet({
     amount > 0 &&
     referenceRate > 0;
 
-  const lowestFeeProvider =
-    useMemo(() => {
-      const candidates = [
+  const remoteConfigured =
+    isRemoteAIConfigured();
+
+  const providerCandidates =
+    useMemo(
+      () =>
+        [
+          bestProvider,
+          secondBestProvider,
+        ].filter(
+          (
+            provider
+          ): provider is AIProviderContext =>
+            provider !==
+            null
+        ),
+      [
         bestProvider,
         secondBestProvider,
-      ].filter(
-        (
-          provider
-        ): provider is ProviderContext =>
-          provider !== null
-      );
+      ]
+    );
 
+  const lowestFeeProvider =
+    useMemo(() => {
       if (
-        candidates.length === 0
+        providerCandidates.length ===
+        0
       ) {
         return null;
       }
 
       return [
-        ...candidates,
+        ...providerCandidates,
       ].sort(
         (
           first,
@@ -156,113 +257,48 @@ export default function FXCompareAISheet({
           second.fee
       )[0];
     }, [
-      bestProvider,
-      secondBestProvider,
+      providerCandidates,
     ]);
 
   const fastestProvider =
     useMemo(() => {
-      const candidates = [
-        bestProvider,
-        secondBestProvider,
-      ].filter(
-        (
-          provider
-        ): provider is ProviderContext =>
-          provider !== null
-      );
-
       if (
-        candidates.length === 0
+        providerCandidates.length ===
+        0
       ) {
         return null;
       }
 
-      const minutes = (
-        text: string
-      ) => {
-        const value =
-          text.toLowerCase();
-
-        if (
-          value.includes(
-            "instant"
-          )
-        ) {
-          return 1;
-        }
-
-        const numbers =
-          value.match(
-            /\d+(?:\.\d+)?/g
-          );
-
-        if (!numbers) {
-          return 9999;
-        }
-
-        const average =
-          numbers
-            .map(Number)
-            .reduce(
-              (
-                sum,
-                number
-              ) =>
-                sum +
-                number,
-              0
-            ) /
-          numbers.length;
-
-        if (
-          value.includes(
-            "day"
-          )
-        ) {
-          return (
-            average *
-            1440
-          );
-        }
-
-        if (
-          value.includes(
-            "hour"
-          ) ||
-          value.includes(
-            "hr"
-          )
-        ) {
-          return (
-            average *
-            60
-          );
-        }
-
-        return average;
-      };
-
       return [
-        ...candidates,
+        ...providerCandidates,
       ].sort(
         (
           first,
           second
         ) =>
-          minutes(
+          getMinutes(
             first.deliveryTime
           ) -
-          minutes(
+          getMinutes(
             second.deliveryTime
           )
       )[0];
     }, [
-      bestProvider,
-      secondBestProvider,
+      providerCandidates,
     ]);
 
-  const getAnswer = (
+  const aiContext:
+    FXCompareAIContext = {
+    amount,
+    fromCurrency,
+    toCurrency,
+    referenceRate,
+    estimatedSavings,
+    bestProvider,
+    secondBestProvider,
+  };
+
+  const getLocalAnswer = (
     question: string
   ) => {
     const normalized =
@@ -278,39 +314,22 @@ export default function FXCompareAISheet({
 
     if (
       normalized.includes(
-        "best"
-      ) ||
-      normalized.includes(
-        "recommend"
-      )
-    ) {
-      return (
-        `${bestProvider!.name} is currently the strongest option in this comparison. ` +
-        `The estimated recipient payout is ${formatAmount(
-          bestProvider!.finalAmount
-        )} ${toCurrency}, with an estimated fee of ${formatAmount(
-          bestProvider!.fee
-        )} ${toCurrency} and delivery around ${bestProvider!.deliveryTime}.`
-      );
-    }
-
-    if (
-      normalized.includes(
         "lowest fee"
       ) ||
       normalized.includes(
         "cheapest"
-      ) ||
-      normalized === "fee"
+      )
     ) {
-      if (!lowestFeeProvider) {
+      if (
+        !lowestFeeProvider
+      ) {
         return (
           "I do not have enough provider results yet to compare fees."
         );
       }
 
       return (
-        `${lowestFeeProvider.name} has the lowest estimated fee among the currently available results I can see: ${formatAmount(
+        `${lowestFeeProvider.name} has the lowest estimated fee among the currently available results: ${formatAmount(
           lowestFeeProvider.fee
         )} ${toCurrency}.`
       );
@@ -324,7 +343,9 @@ export default function FXCompareAISheet({
         "speed"
       )
     ) {
-      if (!fastestProvider) {
+      if (
+        !fastestProvider
+      ) {
         return (
           "I do not have enough provider results yet to compare transfer speed."
         );
@@ -338,29 +359,15 @@ export default function FXCompareAISheet({
     if (
       normalized.includes(
         "save"
-      ) ||
-      normalized.includes(
-        "saving"
       )
     ) {
       return (
-        estimatedSavings > 0
+        estimatedSavings >
+        0
           ? `The best current option is estimated to deliver about ${formatAmount(
               estimatedSavings
-            )} ${toCurrency} more than the next-best payout shown on the dashboard.`
+            )} ${toCurrency} more than the next-best payout shown by FXCompare.`
           : "The current top providers are very close, so the estimated savings advantage is minimal."
-      );
-    }
-
-    if (
-      normalized.includes(
-        "rate"
-      )
-    ) {
-      return (
-        `The current market reference rate is 1 ${fromCurrency} = ${formatRate(
-          referenceRate
-        )} ${toCurrency}. Provider quotes may differ because of fees, spreads and delivery method.`
       );
     }
 
@@ -376,70 +383,177 @@ export default function FXCompareAISheet({
       )
     ) {
       return (
-        `I can explain the current data, but I cannot reliably predict whether ${fromCurrency}/${toCurrency} will improve later today. ` +
-        `Right now the reference rate is ${formatRate(
+        `I cannot reliably predict whether ${fromCurrency}/${toCurrency} will improve later today. ` +
+        `The current reference rate is ${formatRate(
           referenceRate
-        )}, and ${bestProvider!.name} gives the strongest estimated result in FXCompare. ` +
-        "If timing is flexible, compare the current result with your own target rate or set an alert rather than relying on a short-term prediction."
+        )}, and ${bestProvider!.name} gives the strongest estimated result in the current comparison. ` +
+        "If your timing is flexible, compare this with your target rate or set an alert."
+      );
+    }
+
+    if (
+      normalized.includes(
+        "rate"
+      )
+    ) {
+      return (
+        `The current market reference rate is 1 ${fromCurrency} = ${formatRate(
+          referenceRate
+        )} ${toCurrency}. Provider quotes may differ because of fees, spreads and delivery method.`
       );
     }
 
     return (
-      `${bestProvider!.name} is currently the top provider for your ${formatAmount(
+      `${bestProvider!.name} is currently the strongest option for your ${formatAmount(
         amount
       )} ${fromCurrency} comparison. ` +
-      `The reference rate is ${formatRate(
-        referenceRate
-      )} ${toCurrency} per ${fromCurrency}. ` +
-      "Ask me about the best provider, fees, speed, savings or whether the current rate meets your target."
+      `The estimated payout is ${formatAmount(
+        bestProvider!.finalAmount
+      )} ${toCurrency}, with an estimated fee of ${formatAmount(
+        bestProvider!.fee
+      )} ${toCurrency} and delivery around ${bestProvider!.deliveryTime}.`
     );
   };
 
-  const submitQuestion = (
-    question?: string
-  ) => {
-    const finalQuestion =
-      (
-        question ??
-        input
-      ).trim();
+  const toHistory = (
+    current:
+      Message[]
+  ): AIChatMessage[] =>
+    current
+      .filter(
+        (message) =>
+          message.id !==
+          "welcome"
+      )
+      .map(
+        (message) => ({
+          role:
+            message.role,
+          text:
+            message.text,
+        })
+      );
 
-    if (!finalQuestion) {
-      return;
-    }
+  const submitQuestion =
+    async (
+      question?: string
+    ) => {
+      const finalQuestion =
+        (
+          question ??
+          input
+        ).trim();
 
-    const timestamp =
-      Date.now();
+      if (
+        !finalQuestion ||
+        sending
+      ) {
+        return;
+      }
 
-    const userMessage: Message = {
-      id: `user-${timestamp}`,
-      role: "user",
-      text: finalQuestion,
+      const timestamp =
+        Date.now();
+
+      const userMessage:
+        Message = {
+        id:
+          `user-${timestamp}`,
+        role: "user",
+        text:
+          finalQuestion,
+      };
+
+      const currentMessages =
+        [
+          ...messages,
+          userMessage,
+        ];
+
+      setMessages(
+        currentMessages
+      );
+      setInput("");
+      setSending(true);
+
+      try {
+        let answer:
+          string;
+        let source:
+          "remote" |
+          "local";
+
+        if (
+          remoteConfigured
+        ) {
+          try {
+            answer =
+              await askFXCompareAI(
+                {
+                  question:
+                    finalQuestion,
+                  context:
+                    aiContext,
+                  history:
+                    toHistory(
+                      messages
+                    ),
+                }
+              );
+
+            source =
+              "remote";
+          } catch (
+            remoteError
+          ) {
+            console.log(
+              "Remote FXCompare AI error:",
+              remoteError
+            );
+
+            answer =
+              getLocalAnswer(
+                finalQuestion
+              );
+
+            source =
+              "local";
+          }
+        } else {
+          answer =
+            getLocalAnswer(
+              finalQuestion
+            );
+
+          source =
+            "local";
+        }
+
+        setMessages(
+          (current) => [
+            ...current,
+            {
+              id:
+                `assistant-${timestamp}`,
+              role:
+                "assistant",
+              text:
+                answer,
+              source,
+            },
+          ]
+        );
+      } finally {
+        setSending(
+          false
+        );
+      }
     };
-
-    const assistantMessage: Message = {
-      id: `assistant-${timestamp}`,
-      role: "assistant",
-      text:
-        getAnswer(
-          finalQuestion
-        ),
-    };
-
-    setMessages(
-      (current) => [
-        ...current,
-        userMessage,
-        assistantMessage,
-      ]
-    );
-
-    setInput("");
-  };
 
   return (
     <Modal
-      visible={visible}
+      visible={
+        visible
+      }
       transparent
       animationType="slide"
       statusBarTranslucent
@@ -448,7 +562,9 @@ export default function FXCompareAISheet({
       }
     >
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={
+          styles.overlay
+        }
         behavior={
           Platform.OS ===
           "ios"
@@ -465,22 +581,18 @@ export default function FXCompareAISheet({
           }
         />
 
-        <View style={styles.sheet}>
+        <View
+          style={styles.sheet}
+        >
           <View
-            style={
-              styles.handle
-            }
+            style={styles.handle}
           />
 
           <View
-            style={
-              styles.header
-            }
+            style={styles.header}
           >
             <View
-              style={
-                styles.aiIcon
-              }
+              style={styles.aiIcon}
             >
               <Ionicons
                 name="sparkles"
@@ -508,6 +620,43 @@ export default function FXCompareAISheet({
                 }
               >
                 Transfer Assistant
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.modeBadge,
+                remoteConfigured
+                  ? styles.remoteBadge
+                  : styles.localBadge,
+              ]}
+            >
+              <View
+                style={[
+                  styles.modeDot,
+                  {
+                    backgroundColor:
+                      remoteConfigured
+                        ? "#2FE58C"
+                        : "#FFD65A",
+                  },
+                ]}
+              />
+
+              <Text
+                style={[
+                  styles.modeText,
+                  {
+                    color:
+                      remoteConfigured
+                        ? "#2FE58C"
+                        : "#FFD65A",
+                  },
+                ]}
+              >
+                {remoteConfigured
+                  ? "AI ONLINE"
+                  : "LOCAL"}
               </Text>
             </View>
 
@@ -601,7 +750,7 @@ export default function FXCompareAISheet({
                     style={[
                       styles.messageBubble,
                       message.role ===
-                      "user"
+                        "user"
                         ? styles.userBubble
                         : styles.assistantBubble,
                     ]}
@@ -618,10 +767,67 @@ export default function FXCompareAISheet({
                         message.text
                       }
                     </Text>
+
+                    {message.role ===
+                      "assistant" &&
+                    message.id !==
+                      "welcome" ? (
+                      <Text
+                        style={
+                          styles.sourceText
+                        }
+                      >
+                        {message.source ===
+                        "remote"
+                          ? "AI response • grounded in current FXCompare context"
+                          : "Local fallback • based on current FXCompare data"}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               )
             )}
+
+            {sending ? (
+              <View
+                style={
+                  styles.messageRow
+                }
+              >
+                <View
+                  style={
+                    styles.messageAvatar
+                  }
+                >
+                  <Ionicons
+                    name="sparkles"
+                    size={15}
+                    color="#2FE58C"
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.messageBubble,
+                    styles.assistantBubble,
+                    styles.typingBubble,
+                  ]}
+                >
+                  <ActivityIndicator
+                    size="small"
+                    color="#2FE58C"
+                  />
+
+                  <Text
+                    style={
+                      styles.typingText
+                    }
+                  >
+                    Analyzing current FXCompare data...
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
             <Text
               style={
@@ -647,14 +853,17 @@ export default function FXCompareAISheet({
                     activeOpacity={
                       0.82
                     }
+                    disabled={
+                      sending
+                    }
                     style={
                       styles.suggestionChip
                     }
-                    onPress={() =>
-                      submitQuestion(
+                    onPress={() => {
+                      void submitQuestion(
                         question
-                      )
-                    }
+                      );
+                    }}
                   >
                     <Ionicons
                       name="sparkles-outline"
@@ -678,14 +887,19 @@ export default function FXCompareAISheet({
           </ScrollView>
 
           <View
-            style={
-              styles.inputBar
-            }
+            style={[
+              styles.inputBar,
+              sending &&
+                styles.inputBarDisabled,
+            ]}
           >
             <TextInput
               value={input}
               onChangeText={
                 setInput
+              }
+              editable={
+                !sending
               }
               placeholder="Ask about rates, fees or providers..."
               placeholderTextColor="#6F8DA2"
@@ -693,27 +907,44 @@ export default function FXCompareAISheet({
                 styles.input
               }
               returnKeyType="send"
-              onSubmitEditing={() =>
-                submitQuestion()
-              }
+              onSubmitEditing={() => {
+                void submitQuestion();
+              }}
             />
 
             <TouchableOpacity
               activeOpacity={
                 0.85
               }
-              style={
-                styles.sendButton
+              disabled={
+                sending ||
+                input.trim()
+                  .length === 0
               }
-              onPress={() =>
-                submitQuestion()
-              }
+              style={[
+                styles.sendButton,
+                (sending ||
+                  input.trim()
+                    .length ===
+                    0) &&
+                  styles.sendButtonDisabled,
+              ]}
+              onPress={() => {
+                void submitQuestion();
+              }}
             >
-              <Ionicons
-                name="arrow-up"
-                size={20}
-                color="#071521"
-              />
+              {sending ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#071521"
+                />
+              ) : (
+                <Ionicons
+                  name="arrow-up"
+                  size={20}
+                  color="#071521"
+                />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -722,7 +953,7 @@ export default function FXCompareAISheet({
               styles.disclaimer
             }
           >
-            FXCompare AI explains current app data and does not provide financial advice.
+            FXCompare AI explains current app data. Estimates can change and this is not financial advice.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -811,6 +1042,37 @@ const styles =
       marginTop: 3,
     },
 
+    modeBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderRadius: 11,
+      paddingHorizontal: 7,
+      paddingVertical: 6,
+      marginRight: 7,
+    },
+
+    remoteBadge: {
+      backgroundColor:
+        "rgba(47,229,140,0.10)",
+    },
+
+    localBadge: {
+      backgroundColor:
+        "rgba(255,214,90,0.10)",
+    },
+
+    modeDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+    },
+
+    modeText: {
+      fontSize: 7,
+      fontWeight: "900",
+      marginLeft: 4,
+    },
+
     closeButton: {
       width: 40,
       height: 40,
@@ -857,8 +1119,7 @@ const styles =
 
     messageRow: {
       flexDirection: "row",
-      alignItems:
-        "flex-end",
+      alignItems: "flex-end",
       marginBottom: 11,
     },
 
@@ -908,6 +1169,24 @@ const styles =
 
     userMessageText: {
       color: "#FFFFFF",
+    },
+
+    sourceText: {
+      color: "#5F7B8E",
+      fontSize: 7,
+      lineHeight: 11,
+      marginTop: 7,
+    },
+
+    typingBubble: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    typingText: {
+      color: "#829CAF",
+      fontSize: 9,
+      marginLeft: 8,
     },
 
     suggestedTitle: {
@@ -960,6 +1239,10 @@ const styles =
       marginTop: 8,
     },
 
+    inputBarDisabled: {
+      opacity: 0.8,
+    },
+
     input: {
       flex: 1,
       color: "#FFFFFF",
@@ -976,6 +1259,10 @@ const styles =
       justifyContent: "center",
       backgroundColor:
         "#2FE58C",
+    },
+
+    sendButtonDisabled: {
+      opacity: 0.45,
     },
 
     disclaimer: {

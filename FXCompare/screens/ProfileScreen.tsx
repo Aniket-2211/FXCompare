@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Alert,
@@ -5,34 +6,33 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  SafeAreaView,
+} from "react-native-safe-area-context";
+import {
+  Ionicons,
+} from "@expo/vector-icons";
+import {
+  useNavigation,
+} from "@react-navigation/native";
 
 import ScreenHeader from "../components/ScreenHeader";
-import { useAppSettings } from "../context/AppSettingsContext";
-import { useAuth } from "../context/AuthContext";
+import AccountStatusCard from "../components/profile/AccountStatusCard";
 
-type SettingItem = {
-  id:
-    | "currency"
-    | "theme"
-    | "notifications"
-    | "privacy"
-    | "about";
-
-  title: string;
-  subtitle: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  type: "switch" | "arrow";
-};
+import {
+  useAppSettings,
+} from "../context/AppSettingsContext";
+import {
+  useAuth,
+} from "../context/AuthContext";
 
 type ProviderMeta = {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon:
+    keyof typeof Ionicons.glyphMap;
   description: string;
 };
 
@@ -72,6 +72,9 @@ const providerMeta: Record<
 };
 
 export default function ProfileScreen() {
+  const navigation =
+    useNavigation<any>();
+
   const {
     user,
     logout,
@@ -79,26 +82,17 @@ export default function ProfileScreen() {
 
   const {
     loadingSettings,
-
-    darkMode,
     notificationsEnabled,
-
-    defaultFromCurrency,
-    defaultToCurrency,
-
     savedAlerts,
     favouriteProviders,
-
-    setDarkMode,
-    setNotificationsEnabled,
-
     removeFavouriteProvider,
-    clearAllSettings,
   } = useAppSettings();
 
   const displayName =
     user?.displayName?.trim() ||
-    user?.email?.split("@")[0] ||
+    user?.email?.split(
+      "@"
+    )[0] ||
     "FXCompare User";
 
   const email =
@@ -111,202 +105,107 @@ export default function ProfileScreen() {
       .filter(Boolean)
       .slice(0, 2)
       .map((part) =>
-        part.charAt(0).toUpperCase()
+        part
+          .charAt(0)
+          .toUpperCase()
       )
-      .join("") || "FX";
+      .join("") ||
+    "FX";
 
-  const confirmLogout = () => {
-    Alert.alert(
-      "Sign out?",
-      "You will return to the FXCompare login screen.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Sign Out",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              console.log(
-                "Logout error:",
-                error
-              );
-
-              Alert.alert(
-                "Unable to sign out",
-                "Please try again."
-              );
-            }
+  const confirmLogout =
+    () => {
+      Alert.alert(
+        "Sign out?",
+        "You will return to the FXCompare login screen.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
+          {
+            text: "Sign Out",
+            style:
+              "destructive",
+            onPress:
+              async () => {
+                try {
+                  await logout();
+                } catch (error) {
+                  console.log(
+                    "Logout error:",
+                    error
+                  );
 
-  const settings: SettingItem[] = [
-    {
-      id: "currency",
-      title: "Default Currency",
-      subtitle: `${defaultFromCurrency} → ${defaultToCurrency}`,
-      icon: "cash-outline",
-      type: "arrow",
-    },
-
-    {
-      id: "theme",
-      title: "Dark Theme",
-      subtitle: darkMode
-        ? "Dark appearance enabled"
-        : "Dark appearance disabled",
-      icon: "moon-outline",
-      type: "switch",
-    },
-
-    {
-      id: "notifications",
-      title: "Notifications",
-      subtitle: notificationsEnabled
-        ? "Price alerts and updates enabled"
-        : "Notifications disabled",
-      icon: "notifications-outline",
-      type: "switch",
-    },
-
-    {
-      id: "privacy",
-      title: "Privacy Policy",
-      subtitle: "Read our privacy policy",
-      icon: "shield-checkmark-outline",
-      type: "arrow",
-    },
-
-    {
-      id: "about",
-      title: "About FXCompare Pro",
-      subtitle: "Version 1.0.0",
-      icon: "information-circle-outline",
-      type: "arrow",
-    },
-  ];
-
-  const handleSettingPress = (
-    settingId: SettingItem["id"]
-  ) => {
-    switch (settingId) {
-      case "currency":
-        Alert.alert(
-          "Default Currency",
-          "The default currency picker will be connected in the next step."
-        );
-        break;
-
-      case "privacy":
-        Alert.alert(
-          "Privacy Policy",
-          "The privacy policy screen will be connected before release."
-        );
-        break;
-
-      case "about":
-        Alert.alert(
-          "FXCompare Pro",
-          "Version 1.0.0\n\nCompare exchange-rate reference values and estimated provider payouts."
-        );
-        break;
-    }
-  };
-
-  const confirmRemoveFavourite = (
-    providerName: string
-  ) => {
-    Alert.alert(
-      "Remove favourite?",
-      `${providerName} will be removed from your favourite providers.`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await removeFavouriteProvider(
-                providerName
-              );
-            } catch (error) {
-              console.log(
-                "Remove favourite error:",
-                error
-              );
-
-              Alert.alert(
-                "Unable to remove provider",
-                "Please try again."
-              );
-            }
+                  Alert.alert(
+                    "Unable to sign out",
+                    "Please try again."
+                  );
+                }
+              },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+    };
 
-  const handleReset = () => {
-    Alert.alert(
-      "Reset all settings?",
-      "This will restore the default currencies, amount, notification preference, theme preference, saved alerts, and favourite providers.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await clearAllSettings();
-
-              Alert.alert(
-                "Settings reset",
-                "All saved preferences have been restored to their defaults."
-              );
-            } catch (error) {
-              console.log(
-                "Reset settings error:",
-                error
-              );
-
-              Alert.alert(
-                "Unable to reset",
-                "Please try again."
-              );
-            }
+  const confirmRemoveFavourite =
+    (
+      providerName: string
+    ) => {
+      Alert.alert(
+        "Remove favourite?",
+        `${providerName} will be removed from your favourite providers.`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
+          {
+            text: "Remove",
+            style:
+              "destructive",
+            onPress:
+              async () => {
+                try {
+                  await removeFavouriteProvider(
+                    providerName
+                  );
+                } catch (error) {
+                  console.log(
+                    "Remove favourite error:",
+                    error
+                  );
+
+                  Alert.alert(
+                    "Unable to remove provider",
+                    "Please try again."
+                  );
+                }
+              },
+          },
+        ]
+      );
+    };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+    >
       <StatusBar
         backgroundColor="#071521"
         barStyle="light-content"
       />
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.container
+        }
       >
         <ScreenHeader
           title="Profile"
-          subtitle="Manage your preferences and settings"
+          subtitle="Your account, favourites and FXCompare activity"
         />
 
         <View style={styles.profileCard}>
@@ -316,10 +215,16 @@ export default function ProfileScreen() {
                 source={{
                   uri: user.photoURL,
                 }}
-                style={styles.avatarImage}
+                style={
+                  styles.avatarImage
+                }
               />
             ) : (
-              <Text style={styles.avatarInitials}>
+              <Text
+                style={
+                  styles.avatarInitials
+                }
+              >
                 {initials}
               </Text>
             )}
@@ -333,14 +238,6 @@ export default function ProfileScreen() {
             {email}
           </Text>
 
-          <View style={styles.accountStatusRow}>
-            <View style={styles.accountStatusDot} />
-
-            <Text style={styles.accountStatusText}>
-              Firebase account
-            </Text>
-          </View>
-
           <View style={styles.badge}>
             <Ionicons
               name="shield-checkmark"
@@ -348,168 +245,131 @@ export default function ProfileScreen() {
               color="#2FE58C"
             />
 
-            <Text style={styles.badgeText}>
-              SIGNED IN
+            <Text
+              style={styles.badgeText}
+            >
+              VERIFIED SESSION
             </Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>
-          Preferences
-        </Text>
+        <AccountStatusCard
+          email={email}
+          favouritesCount={
+            favouriteProviders.length
+          }
+          alertsCount={
+            savedAlerts.length
+          }
+          notificationsEnabled={
+            notificationsEnabled
+          }
+        />
 
-        {settings.map((item) => {
-          const isSwitch =
-            item.type === "switch";
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={
+            styles.settingsButton
+          }
+          onPress={() =>
+            navigation.navigate(
+              "Settings"
+            )
+          }
+        >
+          <View
+            style={
+              styles.settingsIcon
+            }
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color="#64AFFF"
+            />
+          </View>
 
-          const switchValue =
-            item.id === "theme"
-              ? darkMode
-              : notificationsEnabled;
-
-          return (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={
-                isSwitch ? 1 : 0.85
-              }
-              disabled={
-                isSwitch ||
-                loadingSettings
-              }
-              style={styles.settingCard}
-              onPress={() =>
-                handleSettingPress(item.id)
+          <View
+            style={
+              styles.settingsTextBox
+            }
+          >
+            <Text
+              style={
+                styles.settingsTitle
               }
             >
-              <View style={styles.left}>
-                <View style={styles.iconBox}>
-                  <Ionicons
-                    name={item.icon}
-                    size={22}
-                    color="#64AFFF"
-                  />
-                </View>
-
-                <View style={styles.textBox}>
-                  <Text style={styles.settingTitle}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.settingSubtitle}>
-                    {item.subtitle}
-                  </Text>
-                </View>
-              </View>
-
-              {isSwitch ? (
-                <Switch
-                  disabled={loadingSettings}
-                  value={switchValue}
-                  onValueChange={async (
-                    value
-                  ) => {
-                    try {
-                      if (
-                        item.id === "theme"
-                      ) {
-                        await setDarkMode(
-                          value
-                        );
-                      } else {
-                        await setNotificationsEnabled(
-                          value
-                        );
-                      }
-                    } catch (error) {
-                      console.log(
-                        "Setting update error:",
-                        error
-                      );
-
-                      Alert.alert(
-                        "Unable to update setting",
-                        "Please try again."
-                      );
-                    }
-                  }}
-                  trackColor={{
-                    false: "#2B475C",
-                    true: "#1B8C63",
-                  }}
-                  thumbColor={
-                    switchValue
-                      ? "#2FE58C"
-                      : "#829CAF"
-                  }
-                />
-              ) : (
-                <Ionicons
-                  name="chevron-forward"
-                  size={22}
-                  color="#829CAF"
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-
-        <View style={styles.favouritesHeader}>
-          <View>
-            <Text style={styles.sectionTitle}>
-              Favourite Providers
+              App Settings
             </Text>
 
-            <Text style={styles.sectionSubtitle}>
-              Providers saved from the comparison screen
+            <Text
+              style={
+                styles.settingsSubtitle
+              }
+            >
+              Currency defaults, theme, notifications, privacy and reset options
             </Text>
           </View>
 
-          <View style={styles.favouriteCount}>
-            <Text style={styles.favouriteCountText}>
-              {favouriteProviders.length}
+          <Ionicons
+            name="chevron-forward"
+            size={22}
+            color="#829CAF"
+          />
+        </TouchableOpacity>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text
+              style={styles.sectionTitle}
+            >
+              Favourite Providers
+            </Text>
+
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
+              Providers you saved from comparison results
+            </Text>
+          </View>
+
+          <View
+            style={
+              styles.favouriteCount
+            }
+          >
+            <Text
+              style={
+                styles.favouriteCountText
+              }
+            >
+              {
+                favouriteProviders.length
+              }
             </Text>
           </View>
         </View>
 
         {loadingSettings ? (
-          <View style={styles.emptyFavouriteCard}>
-            <Ionicons
-              name="hourglass-outline"
-              size={34}
-              color="#67869C"
-            />
-
-            <Text style={styles.emptyFavouriteTitle}>
-              Loading favourites
-            </Text>
-
-            <Text style={styles.emptyFavouriteText}>
-              Restoring your saved providers.
-            </Text>
-          </View>
-        ) : favouriteProviders.length === 0 ? (
-          <View style={styles.emptyFavouriteCard}>
-            <View style={styles.emptyHeartBox}>
-              <Ionicons
-                name="heart-outline"
-                size={32}
-                color="#FF8296"
-              />
-            </View>
-
-            <Text style={styles.emptyFavouriteTitle}>
-              No favourite providers
-            </Text>
-
-            <Text style={styles.emptyFavouriteText}>
-              Open a provider from the Compare tab and tap the heart icon to
-              save it here.
-            </Text>
-          </View>
+          <EmptyFavourite
+            icon="hourglass-outline"
+            title="Loading favourites"
+            message="Restoring your saved providers."
+          />
+        ) : favouriteProviders.length ===
+          0 ? (
+          <EmptyFavourite
+            icon="heart-outline"
+            title="No favourite providers"
+            message="Open a provider from Compare and tap the heart icon to save it here."
+          />
         ) : (
           favouriteProviders.map(
-            (providerName) => {
+            (
+              providerName
+            ) => {
               const meta =
                 providerMeta[
                   providerName
@@ -522,7 +382,9 @@ export default function ProfileScreen() {
 
               return (
                 <View
-                  key={providerName}
+                  key={
+                    providerName
+                  }
                   style={
                     styles.favouriteCard
                   }
@@ -538,7 +400,9 @@ export default function ProfileScreen() {
                       }
                     >
                       <Ionicons
-                        name={meta.icon}
+                        name={
+                          meta.icon
+                        }
                         size={23}
                         color="#64AFFF"
                       />
@@ -559,7 +423,9 @@ export default function ProfileScreen() {
                             styles.providerName
                           }
                         >
-                          {providerName}
+                          {
+                            providerName
+                          }
                         </Text>
 
                         <Ionicons
@@ -573,16 +439,24 @@ export default function ProfileScreen() {
                         style={
                           styles.providerDescription
                         }
-                        numberOfLines={1}
+                        numberOfLines={
+                          1
+                        }
                       >
-                        {meta.description}
+                        {
+                          meta.description
+                        }
                       </Text>
                     </View>
                   </View>
 
                   <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={styles.removeButton}
+                    activeOpacity={
+                      0.8
+                    }
+                    style={
+                      styles.removeButton
+                    }
                     onPress={() =>
                       confirmRemoveFavourite(
                         providerName
@@ -602,91 +476,78 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.statsCard}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              {favouriteProviders.length}
-            </Text>
+          <Stat
+            value={`${favouriteProviders.length}`}
+            label="Favourites"
+          />
 
-            <Text style={styles.statLabel}>
-              Favourites
-            </Text>
-          </View>
+          <View
+            style={styles.divider}
+          />
 
-          <View style={styles.divider} />
+          <Stat
+            value={`${savedAlerts.length}`}
+            label="Saved Alerts"
+          />
 
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              {savedAlerts.length}
-            </Text>
+          <View
+            style={styles.divider}
+          />
 
-            <Text style={styles.statLabel}>
-              Saved Alerts
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              LATEST
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Rates
-            </Text>
-          </View>
+          <Stat
+            value="LIVE"
+            label="Rates"
+          />
         </View>
 
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.feedbackButton}
+          style={
+            styles.feedbackButton
+          }
           onPress={() =>
             Alert.alert(
               "Send Feedback",
-              "The feedback form will be connected before release."
+              "Feedback submission will be connected before release."
             )
           }
         >
           <Ionicons
             name="chatbubble-ellipses-outline"
-            size={22}
+            size={21}
             color="#FFFFFF"
           />
 
-          <Text style={styles.feedbackText}>
+          <Text
+            style={
+              styles.feedbackText
+            }
+          >
             Send Feedback
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.logoutButton}
-          onPress={confirmLogout}
+          style={
+            styles.logoutButton
+          }
+          onPress={
+            confirmLogout
+          }
         >
           <Ionicons
             name="log-out-outline"
             size={21}
-            color="#FFFFFF"
-          />
-
-          <Text style={styles.logoutText}>
-            Sign Out
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.resetButton}
-          onPress={handleReset}
-        >
-          <Ionicons
-            name="refresh-outline"
-            size={20}
             color="#FF8B8B"
           />
 
-          <Text style={styles.resetText}>
-            Reset App Settings
+          <Text
+            style={
+              styles.logoutText
+            }
+          >
+            Sign Out
           </Text>
         </TouchableOpacity>
 
@@ -695,6 +556,77 @@ export default function ProfileScreen() {
         </Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function EmptyFavourite({
+  icon,
+  title,
+  message,
+}: {
+  icon:
+    keyof typeof Ionicons.glyphMap;
+  title: string;
+  message: string;
+}) {
+  return (
+    <View
+      style={
+        styles.emptyFavouriteCard
+      }
+    >
+      <View
+        style={
+          styles.emptyHeartBox
+        }
+      >
+        <Ionicons
+          name={icon}
+          size={31}
+          color="#FF8296"
+        />
+      </View>
+
+      <Text
+        style={
+          styles.emptyFavouriteTitle
+        }
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={
+          styles.emptyFavouriteText
+        }
+      >
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+function Stat({
+  value,
+  label,
+}: {
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.stat}>
+      <Text
+        style={styles.statValue}
+      >
+        {value}
+      </Text>
+
+      <Text
+        style={styles.statLabel}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -717,7 +649,7 @@ const styles = StyleSheet.create({
     borderColor: "#194661",
     alignItems: "center",
     padding: 24,
-    marginBottom: 24,
+    marginBottom: 16,
   },
 
   avatar: {
@@ -744,119 +676,90 @@ const styles = StyleSheet.create({
   name: {
     color: "#FFFFFF",
     fontSize: 22,
-    fontWeight: "800",
-    marginTop: 16,
+    fontWeight: "900",
+    marginTop: 15,
   },
 
   email: {
     color: "#8EA7BA",
-    marginTop: 6,
-    fontSize: 14,
-  },
-
-  accountStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  accountStatusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#2FE58C",
-    marginRight: 6,
-  },
-
-  accountStatusText: {
-    color: "#8EA7BA",
-    fontSize: 11,
-    fontWeight: "700",
+    marginTop: 5,
+    fontSize: 13,
   },
 
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 14,
     backgroundColor:
       "rgba(47,229,140,0.12)",
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
 
   badgeText: {
     color: "#2FE58C",
-    marginLeft: 6,
-    fontWeight: "800",
-    fontSize: 11,
+    marginLeft: 5,
+    fontWeight: "900",
+    fontSize: 9,
   },
 
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 14,
-  },
-
-  sectionSubtitle: {
-    color: "#829CAF",
-    fontSize: 12,
-    marginTop: -8,
-  },
-
-  settingCard: {
+  settingsButton: {
+    minHeight: 82,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#0E2C43",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#194661",
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 24,
   },
 
-  left: {
-    flexDirection: "row",
-    flex: 1,
-    alignItems: "center",
-  },
-
-  iconBox: {
-    width: 48,
-    height: 48,
+  settingsIcon: {
+    width: 47,
+    height: 47,
     borderRadius: 16,
-    backgroundColor: "#16344C",
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#16344C",
   },
 
-  textBox: {
-    marginLeft: 14,
+  settingsTextBox: {
     flex: 1,
+    marginHorizontal: 12,
   },
 
-  settingTitle: {
+  settingsTitle: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "900",
   },
 
-  settingSubtitle: {
+  settingsSubtitle: {
     color: "#829CAF",
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 10,
+    lineHeight: 15,
     marginTop: 4,
   },
 
-  favouritesHeader: {
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 14,
-    marginBottom: 14,
-    paddingHorizontal: 2,
+    marginBottom: 13,
+  },
+
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+
+  sectionSubtitle: {
+    color: "#829CAF",
+    fontSize: 11,
+    marginTop: 4,
   },
 
   favouriteCount: {
@@ -921,14 +824,14 @@ const styles = StyleSheet.create({
 
   providerName: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
     marginRight: 7,
   },
 
   providerDescription: {
     color: "#829CAF",
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 5,
   },
 
@@ -943,7 +846,7 @@ const styles = StyleSheet.create({
   },
 
   emptyFavouriteCard: {
-    minHeight: 180,
+    minHeight: 172,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#0E2C43",
@@ -955,9 +858,9 @@ const styles = StyleSheet.create({
   },
 
   emptyHeartBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor:
@@ -966,17 +869,17 @@ const styles = StyleSheet.create({
 
   emptyFavouriteTitle: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
-    marginTop: 14,
+    marginTop: 13,
   },
 
   emptyFavouriteText: {
     color: "#829CAF",
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 17,
     textAlign: "center",
-    marginTop: 7,
+    marginTop: 6,
   },
 
   statsCard: {
@@ -985,9 +888,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#194661",
-    marginTop: 18,
-    paddingVertical: 22,
-    justifyContent: "space-around",
+    marginTop: 8,
+    paddingVertical: 20,
   },
 
   stat: {
@@ -1002,52 +904,35 @@ const styles = StyleSheet.create({
 
   statValue: {
     color: "#2FE58C",
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 17,
+    fontWeight: "900",
   },
 
   statLabel: {
     color: "#829CAF",
-    marginTop: 6,
-    fontSize: 11,
+    marginTop: 5,
+    fontSize: 10,
     textAlign: "center",
   },
 
   feedbackButton: {
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: "#1687E8",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 22,
-  },
-
-  feedbackText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
-    marginLeft: 10,
-  },
-
-  logoutButton: {
     height: 56,
     borderRadius: 18,
     backgroundColor: "#1687E8",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 20,
   },
 
-  logoutText: {
+  feedbackText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
-    marginLeft: 8,
+    marginLeft: 9,
   },
 
-  resetButton: {
+  logoutButton: {
     height: 54,
     borderRadius: 18,
     backgroundColor:
@@ -1061,9 +946,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
-  resetText: {
+  logoutText: {
     color: "#FF8B8B",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     marginLeft: 8,
   },
@@ -1071,8 +956,8 @@ const styles = StyleSheet.create({
   footer: {
     color: "#64798A",
     textAlign: "center",
-    marginTop: 28,
+    marginTop: 26,
     marginBottom: 30,
-    fontSize: 12,
+    fontSize: 11,
   },
 });
