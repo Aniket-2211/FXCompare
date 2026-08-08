@@ -34,6 +34,7 @@ import FavoritePairsCard, {
   FavouriteCurrencyPair,
 } from "../components/FavoritePairsCard";
 import RecentSearchesCard from "../components/RecentSearchesCard";
+import FXCompareAISheet from "../components/ai/FXCompareAISheet";
 
 import useComparison from "../hooks/useComparison";
 import useRecentSearches from "../hooks/useRecentSearches";
@@ -223,6 +224,11 @@ export default function HomeScreen() {
   const navigation =
     useNavigation<any>();
 
+  const [
+    aiVisible,
+    setAiVisible,
+  ] = useState(false);
+
   const {
     recentSearches,
     loading: recentSearchesLoading,
@@ -380,6 +386,52 @@ export default function HomeScreen() {
           0
         )
       : 0;
+
+  const aiBestProvider =
+    bestProvider
+      ? {
+          name:
+            bestProvider.name,
+          rate:
+            bestProvider.rate,
+          fee:
+            bestProvider.fee,
+          finalAmount:
+            bestProvider.finalAmount,
+          deliveryTime:
+            bestProviderMeta.deliveryTime,
+          rating:
+            bestProviderMeta.rating,
+        }
+      : null;
+
+  const aiSecondBestProvider =
+    secondBestProvider
+      ? {
+          name:
+            secondBestProvider.name,
+          rate:
+            secondBestProvider.rate,
+          fee:
+            secondBestProvider.fee,
+          finalAmount:
+            secondBestProvider.finalAmount,
+          deliveryTime:
+            (
+              providerMeta[
+                secondBestProvider.name
+              ] ??
+              fallbackProviderMeta
+            ).deliveryTime,
+          rating:
+            (
+              providerMeta[
+                secondBestProvider.name
+              ] ??
+              fallbackProviderMeta
+            ).rating,
+        }
+      : null;
 
   const openProviderDetails = () => {
     if (!bestProvider) {
@@ -717,6 +769,50 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
+        </View>
+
+        <View style={styles.aiLauncherCard}>
+          <View style={styles.aiLauncherTop}>
+            <View style={styles.aiLauncherIcon}>
+              <Ionicons
+                name="sparkles"
+                size={22}
+                color="#2FE58C"
+              />
+            </View>
+
+            <View style={styles.aiLauncherTextBox}>
+              <Text style={styles.aiLauncherEyebrow}>
+                FXCOMPARE AI
+              </Text>
+
+              <Text style={styles.aiLauncherTitle}>
+                Ask about this transfer
+              </Text>
+
+              <Text style={styles.aiLauncherSubtitle}>
+                Understand the best provider, fees, speed, savings and current rate.
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={styles.aiLauncherButton}
+            onPress={() =>
+              setAiVisible(true)
+            }
+          >
+            <Text style={styles.aiLauncherButtonText}>
+              Ask FXCompare AI
+            </Text>
+
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color="#071521"
+            />
+          </TouchableOpacity>
         </View>
 
         <View
@@ -1186,6 +1282,30 @@ export default function HomeScreen() {
           }
         />
       </ScrollView>
+
+      <FXCompareAISheet
+        visible={aiVisible}
+        onClose={() =>
+          setAiVisible(false)
+        }
+        amount={numericAmount}
+        fromCurrency={
+          fromCurrency
+        }
+        toCurrency={
+          toCurrency
+        }
+        referenceRate={rate}
+        bestProvider={
+          aiBestProvider
+        }
+        secondBestProvider={
+          aiSecondBestProvider
+        }
+        estimatedSavings={
+          estimatedSavings
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -1455,6 +1575,79 @@ const styles =
       fontSize: 12,
       lineHeight: 19,
       textAlign: "center",
+    },
+
+    aiLauncherCard: {
+      backgroundColor:
+        "#0E2C43",
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor:
+        "rgba(47,229,140,0.28)",
+      padding: 15,
+      marginBottom: 14,
+    },
+
+    aiLauncherTop: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    aiLauncherIcon: {
+      width: 47,
+      height: 47,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor:
+        "rgba(47,229,140,0.10)",
+      borderWidth: 1,
+      borderColor:
+        "rgba(47,229,140,0.20)",
+    },
+
+    aiLauncherTextBox: {
+      flex: 1,
+      marginLeft: 11,
+    },
+
+    aiLauncherEyebrow: {
+      color: "#2FE58C",
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+    },
+
+    aiLauncherTitle: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "900",
+      marginTop: 3,
+    },
+
+    aiLauncherSubtitle: {
+      color: "#829CAF",
+      fontSize: 9,
+      lineHeight: 14,
+      marginTop: 4,
+    },
+
+    aiLauncherButton: {
+      height: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor:
+        "#2FE58C",
+      borderRadius: 16,
+      marginTop: 13,
+    },
+
+    aiLauncherButtonText: {
+      color: "#071521",
+      fontSize: 12,
+      fontWeight: "900",
+      marginRight: 7,
     },
 
     liveRateCard: {

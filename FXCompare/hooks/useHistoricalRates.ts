@@ -13,32 +13,57 @@ import {
 type Params = {
   fromCurrency: string;
   toCurrency: string;
-  range: HistoricalRange;
+  initialRange?: HistoricalRange;
+};
+
+type Result = {
+  data: HistoricalRatePoint[];
+  loading: boolean;
+  error: string | null;
+
+  selectedRange: HistoricalRange;
+  setSelectedRange: (
+    range: HistoricalRange
+  ) => void;
+
+  refresh: () => void;
+  retry: () => void;
 };
 
 export default function useHistoricalRates({
   fromCurrency,
   toCurrency,
-  range,
-}: Params) {
+  initialRange = "7D",
+}: Params): Result {
+  const [
+    selectedRange,
+    setSelectedRange,
+  ] =
+    useState<HistoricalRange>(
+      initialRange
+    );
+
   const [
     data,
     setData,
-  ] = useState<
-    HistoricalRatePoint[]
-  >([]);
+  ] =
+    useState<
+      HistoricalRatePoint[]
+    >([]);
 
   const [
     loading,
     setLoading,
-  ] = useState(true);
+  ] =
+    useState(true);
 
   const [
     error,
     setError,
-  ] = useState<
-    string | null
-  >(null);
+  ] =
+    useState<
+      string | null
+    >(null);
 
   const load =
     useCallback(
@@ -54,18 +79,22 @@ export default function useHistoricalRates({
               {
                 fromCurrency,
                 toCurrency,
-                range,
+                range:
+                  selectedRange,
                 signal,
               }
             );
 
-          setData(points);
+          if (
+            !signal?.aborted
+          ) {
+            setData(
+              points
+            );
+          }
         } catch (err) {
           if (
-            err instanceof
-              DOMException &&
-            err.name ===
-              "AbortError"
+            signal?.aborted
           ) {
             return;
           }
@@ -78,6 +107,13 @@ export default function useHistoricalRates({
             return;
           }
 
+          console.log(
+            "Historical rates error:",
+            err
+          );
+
+          setData([]);
+
           setError(
             err instanceof Error
               ? err.message
@@ -87,14 +123,16 @@ export default function useHistoricalRates({
           if (
             !signal?.aborted
           ) {
-            setLoading(false);
+            setLoading(
+              false
+            );
           }
         }
       },
       [
         fromCurrency,
         toCurrency,
-        range,
+        selectedRange,
       ]
     );
 
@@ -120,6 +158,11 @@ export default function useHistoricalRates({
     data,
     loading,
     error,
+
+    selectedRange,
+    setSelectedRange,
+
     refresh,
+    retry: refresh,
   };
 }

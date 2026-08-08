@@ -1,8 +1,5 @@
-// components/AnimatedCard.tsx
-
 import React, {
   ReactNode,
-  useEffect,
 } from "react";
 
 import {
@@ -11,33 +8,24 @@ import {
 } from "react-native";
 
 import Animated, {
-  FadeIn,
-  FadeOut,
+  LinearTransition,
   SlideInUp,
   SlideOutDown,
 } from "react-native-reanimated";
 
 type Props = {
   children: ReactNode;
-
   style?: StyleProp<ViewStyle>;
-
   delay?: number;
-
   duration?: number;
 };
 
 export default function AnimatedCard({
   children,
-
   style,
-
   delay = 0,
-
   duration = 450,
 }: Props) {
-  useEffect(() => {}, []);
-
   return (
     <Animated.View
       entering={SlideInUp
@@ -46,7 +34,9 @@ export default function AnimatedCard({
       exiting={SlideOutDown.duration(
         250
       )}
-      layout={FadeIn.duration(250)}
+      layout={LinearTransition.duration(
+        250
+      )}
       style={style}
     >
       {children}

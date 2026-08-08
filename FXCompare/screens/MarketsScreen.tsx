@@ -19,6 +19,11 @@ import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "../components/ScreenHeader";
 import HistoricalChart from "../components/historical/HistoricalChart";
 import FavoriteButton from "../components/market/FavoriteButton";
+import AIMarketInsightCard from "../components/market/AIMarketInsightCard";
+import TrendingCurrencies from "../components/market/TrendingCurrencies";
+import BiggestMovers from "../components/market/BiggestMovers";
+import CurrencyHeatMap from "../components/market/CurrencyHeatMap";
+import AIHighlightCard from "../components/market/AIHighlightCard";
 
 import { MarketPair } from "../services/marketsApi";
 import useMarkets from "../hooks/useMarkets";
@@ -503,6 +508,65 @@ export default function MarketsScreen() {
             </View>
           </View>
         </View>
+
+        <AIMarketInsightCard
+          marketPairs={
+            marketPairs
+          }
+          topGainer={
+            topGainer
+          }
+          topLoser={
+            topLoser
+          }
+          averageChange={
+            averageChange
+          }
+          selectedPair={`${chartFromCurrency}/${chartToCurrency}`}
+        />
+
+        <TrendingCurrencies
+          pairs={marketPairs}
+          selectedCode={
+            chartFromCurrency
+          }
+          onSelect={(item) => {
+            setChartFromCurrency(
+              item.code
+            );
+            setChartToCurrency(
+              "INR"
+            );
+          }}
+        />
+
+        <BiggestMovers
+          pairs={marketPairs}
+          onSelect={(item) => {
+            setChartFromCurrency(
+              item.code
+            );
+            setChartToCurrency(
+              "INR"
+            );
+          }}
+        />
+
+        <CurrencyHeatMap
+          pairs={marketPairs}
+          onSelect={(item) => {
+            setChartFromCurrency(
+              item.code
+            );
+            setChartToCurrency(
+              "INR"
+            );
+          }}
+        />
+
+        <AIHighlightCard
+          pairs={marketPairs}
+        />
 
         <HistoricalChart
           fromCurrency={
