@@ -24,11 +24,13 @@ import TrendingCurrencies from "../components/market/TrendingCurrencies";
 import BiggestMovers from "../components/market/BiggestMovers";
 import CurrencyHeatMap from "../components/market/CurrencyHeatMap";
 import AIHighlightCard from "../components/market/AIHighlightCard";
+import AnalyticsOverviewCard from "../components/analytics/AnalyticsOverviewCard";
 
 import { MarketPair } from "../services/marketsApi";
 import useMarkets from "../hooks/useMarkets";
 import useHistoricalRates from "../hooks/useHistoricalRates";
 import useFavorites from "../hooks/useFavorites";
+import { analyzeHistoricalRates } from "../services/analyticsService";
 
 type MarketFilter =
   | "all"
@@ -160,6 +162,15 @@ export default function MarketsScreen() {
     toCurrency:
       chartToCurrency,
   });
+
+  const historicalAnalytics =
+    useMemo(
+      () =>
+        analyzeHistoricalRates(
+          historicalData
+        ),
+      [historicalData]
+    );
 
   const gainersCount =
     useMemo(() => {
@@ -566,6 +577,18 @@ export default function MarketsScreen() {
 
         <AIHighlightCard
           pairs={marketPairs}
+        />
+
+        <AnalyticsOverviewCard
+          fromCurrency={
+            chartFromCurrency
+          }
+          toCurrency={
+            chartToCurrency
+          }
+          analytics={
+            historicalAnalytics
+          }
         />
 
         <HistoricalChart
