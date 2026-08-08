@@ -45,7 +45,7 @@ import {
   useAppSettings,
 } from "../context/AppSettingsContext";
 
-import {
+import type {
   RootStackParamList,
 } from "../navigation/RootNavigator";
 
@@ -573,6 +573,13 @@ export default function CompareScreen() {
       ] ??
       fallbackProviderDetails;
 
+    const recommendation =
+      recommendationRankings.find(
+        (item) =>
+          item.name ===
+          provider.name
+      );
+
     navigation.navigate(
       "ProviderDetails",
       {
@@ -595,11 +602,37 @@ export default function CompareScreen() {
           details.rating,
 
         recommended:
-          provider.recommended ??
-          false,
+          recommendation?.rank ===
+          1,
 
         paymentMethods:
           details.paymentMethods,
+
+        score:
+          recommendation?.score ??
+          0,
+
+        confidence:
+          recommendation?.confidence ??
+          0,
+
+        reasons:
+          recommendation?.reasons ??
+          [],
+
+        breakdown:
+          recommendation?.breakdown ??
+          {
+            payout: 0,
+            fee: 0,
+            speed: 0,
+            rating: 0,
+            reliability: 0,
+          },
+
+        savings:
+          recommendation?.savings ??
+          0,
       }
     );
   };

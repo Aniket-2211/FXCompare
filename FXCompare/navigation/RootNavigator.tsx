@@ -1,5 +1,3 @@
-// navigation/RootNavigator.tsx
-
 import React from "react";
 import {
   ActivityIndicator,
@@ -18,9 +16,22 @@ import {
   useAuth,
 } from "../context/AuthContext";
 
+export type ProviderRecommendationReason = {
+  id: string;
+  label: string;
+  icon?: string;
+};
+
+export type ProviderScoreBreakdown = {
+  payout: number;
+  fee: number;
+  speed: number;
+  rating: number;
+  reliability: number;
+};
+
 export type RootStackParamList = {
   Login: undefined;
-
   MainTabs: undefined;
 
   ProviderDetails: {
@@ -32,6 +43,11 @@ export type RootStackParamList = {
     rating: number;
     recommended?: boolean;
     paymentMethods: string[];
+    score: number;
+    confidence: number;
+    reasons: ProviderRecommendationReason[];
+    breakdown: ProviderScoreBreakdown;
+    savings: number;
   };
 };
 
